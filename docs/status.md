@@ -1,6 +1,32 @@
 # Refund Detective — Build Status
 
-_Last updated: 2026-11-11 (Phase 1 in progress)_
+_Last updated: 2026-11-11 23:40 IST. Phase 1 is complete in code; live verification is blocked on credentials (B1/B2/B3)._
+
+## Phase 1 report
+
+**Implemented**
+- Monorepo (npm workspaces): `server/` (Express 5, TS, Zod 4, better-sqlite3, pino) and `client/` (React 19, Vite, Tailwind 4, TanStack Query, Recharts, lucide). Root `dev/build/test/start/seed:sandbox/test:sandbox` scripts.
+- Hygiene: `.gitignore`, `.env.example`, MIT `LICENSE`, Sandbox-only boot guard (verified: `PAYPAL_ENVIRONMENT=LIVE` makes the process exit with code 1), pino redaction plus a token scrubber.
+- `001_init.sql` with all §5 tables, applied on boot.
+- PayPal layer: OAuth client-credentials auth with refresh 5 min before expiry (emits `token`, which restarts the MCP child). The managed `@paypal/mcp` stdio child is pinned as a dependency and spawned with `node`, not `npx`; it restarts with backoff and has 15s/30s timeouts. An allowlisted registry validates arguments with Ajv against the discovered `inputSchema`, and writes require `{approved:true}`. The REST fallback is used only when MCP is down before a call, and sends `PayPal-Request-Id` for refunds.
+- Explorer merges Transaction Search (31-day chunks, paging) with `demo_orders` fetched live. A 403 is surfaced with the dashboard hint.
+- API: `/api/health`, `/api/settings/integration-status`, `POST /api/settings/test-connection` (read-only), `/api/transactions`, `/api/transactions/:id/details`, `/api/dashboard/summary`.
+- UI: shell (sidebar, SANDBOX pill, global ID search), Overview (KPIs, activity and refund charts, pipeline, audit feed), Transactions (filters, sort, pagination, refresh, detail drawer with "Investigate with AI"), Settings (MCP and AI status, token countdown, test connection). Unbuilt sections say "Not built yet" and simulate nothing.
+- Scripts: `npm run test:sandbox` (read-only live smoke) and `npm run seed:sandbox -- create|capture|status` (**write; not run**).
+
+**Verified live**
+- The backend spawned its own MCP child, which reported `PayPal 1.11.0`, `ready`, 28 tools; all 9 allowlisted tools were discovered (dummy token, no PayPal calls).
+- The production build serves the SPA and API from a single Express process (`GET /` 200, SPA fallback 200, `/api/health` ok).
+
+**Tests:** server 30/30 pass; client 7/7 pass. Typecheck is clean for both.
+
+**Notes and decisions**
+- TypeScript 7's native `tsc` binary is being SIGKILLed on this Mac (even `tsc --version`), so it's pinned to TS 5.9.
+- `@paypal/mcp` npm version is 1.8.1; it reports itself as `PayPal 1.11.0` (agent-toolkit version).
+- MCP `create_refund` has **no idempotency parameter**. The app-level `idempotency_key` plus the lock is the guard on the MCP path.
+- `@paypal/mcp`'s `accept_dispute_claim` validates `note` against an ID regex (`^[A-Za-z0-9_-]{1,255}$`), which looks like an upstream bug. Notes must be slug-like on the MCP path.
+- `npm audit`: 13 advisories from `@paypal/mcp`'s transitive dependencies (not app code).
+- AG Grid was skipped. The custom table is done and tested.
 
 ## Ground truth check (2026-11-11)
 
@@ -30,11 +56,12 @@ _Last updated: 2026-11-11 (Phase 1 in progress)_
 
 - **B1. Transaction Search 403.** Enable *Transaction Search* for the Sandbox app in the PayPal Developer Dashboard (My Apps & Credentials → app → Features), then regenerate credentials. Until then, the explorer can only show orders this app creates (`demo_orders`).
 - **B2. Credentials needed in `.env`:** `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` (so tokens auto-refresh), `ANTHROPIC_API_KEY`.
+- **B3. No Sandbox orders exist yet.** Live `get_order` can't be verified until orders are seeded. `npm run seed:sandbox -- create` is a PayPal write and needs merchant go-ahead.
 
 ## Acceptance criteria (§17)
 
 1. [ ] App launches; dashboard loads; SANDBOX visible everywhere
-2. [ ] Backend MCP client spawns `@paypal/mcp`, discovers tools, Settings shows status
+2. [x] Backend MCP client spawns `@paypal/mcp`, discovers tools, Settings shows status (verified 2026-11-11 with a dummy token; live calls pending B2)
 3. [ ] Real Sandbox transactions and orders/captures are retrieved and displayed
 4. [ ] Investigation produces a schema-valid, evidence-cited report
 5. [ ] UI shows the evidence behind each finding
