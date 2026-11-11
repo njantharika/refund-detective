@@ -3,15 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "workspaces": ["server", "client"],
-  "engines": { "node": ">=20" },
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "concurrently -n server,client -c magenta,cyan \"npm run dev -w server\" \"npm run dev -w client\"",
     "build": "npm run build -w client && npm run build -w server",
     "test": "npm run test -w server && npm run test -w client",
     "start": "npm run start -w server",
     "seed:sandbox": "npm run seed:sandbox -w server",
-    "test:sandbox": "npm run test:sandbox -w server"
+    "test:sandbox": "npm run test:sandbox -w server",
+    "check:ai": "npm run check:ai -w server"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

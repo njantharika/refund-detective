@@ -12,21 +12,32 @@ const EnvSchema = z.object({
   PAYPAL_CLIENT_SECRET: optStr,
   PAYPAL_ACCESS_TOKEN: optStr,
   PAYPAL_WEBHOOK_ID: optStr,
-  AI_PROVIDER: z.preprocess(blankToUndefined, z.enum(['anthropic', 'openai']).default('anthropic')),
+  AI_PROVIDER: z.preprocess(blankToUndefined, z.enum(['anthropic', 'gemini', 'openai']).default('anthropic')),
   ANTHROPIC_API_KEY: optStr,
+  GEMINI_API_KEY: optStr,
   OPENAI_API_KEY: optStr,
   OPENAI_BASE_URL: optStr,
-  AI_MODEL_INVESTIGATOR: z.preprocess(blankToUndefined, z.string().default('claude-sonnet-5-5')),
-  AI_MODEL_ADVOCATE: z.preprocess(blankToUndefined, z.string().default('claude-sonnet-5-5')),
-  AI_MODEL_CHALLENGER: z.preprocess(blankToUndefined, z.string().default('claude-sonnet-5-5')),
-  AI_MODEL_JUDGE: z.preprocess(blankToUndefined, z.string().default('claude-opus-5-5')),
+  AI_MODEL_INVESTIGATOR: optStr,
+  AI_MODEL_ADVOCATE: optStr,
+  AI_MODEL_CHALLENGER: optStr,
+  AI_MODEL_JUDGE: optStr,
   COUNCIL_REBUTTAL: z.preprocess(blankToUndefined, z.string().default('false')).transform((v) => v === 'true'),
   DATABASE_PATH: z.preprocess(blankToUndefined, z.string().default('./data/refund-detective.db')),
   PORT: z.preprocess(blankToUndefined, z.coerce.number().int().default(3001)),
   LOG_LEVEL: z.preprocess(blankToUndefined, z.string().default('info')),
 });
 
-export type AppConfig = z.infer<typeof EnvSchema> & { PAYPAL_API_BASE: string };
+type Parsed = z.infer<typeof EnvSchema>;
+type ModelKeys = 'AI_MODEL_INVESTIGATOR' | 'AI_MODEL_ADVOCATE' | 'AI_MODEL_CHALLENGER' | 'AI_MODEL_JUDGE';
+export type AppConfig = Omit<Parsed, ModelKeys> & Record<ModelKeys, string> & { PAYPAL_API_BASE: string; AI_BASE_URL: string | null; AI_API_KEY: string | null };
+
+/** Per-provider defaults. Every value is overridable via env. */
+export const PROVIDER_DEFAULTS = {
+  anthropic: { baseUrl: null, investigator: 'claude-sonnet-5-5', advocate: 'claude-sonnet-5-5', challenger: 'claude-sonnet-5-5', judge: 'claude-opus-5-5' },
+  // Gemini via Google's OpenAI-compatible endpoint. Model ids are verified against the live /models list at setup.
+  gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/', investigator: 'gemini-2.5-flash', advocate: 'gemini-2.5-flash', challenger: 'gemini-2.5-flash', judge: 'gemini-2.5-pro' },
+  openai: { baseUrl: null, investigator: '', advocate: '', challenger: '', judge: '' },
+} as const;
 
 export class SandboxOnlyError extends Error {}
 
@@ -44,7 +55,20 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     parsed.DATABASE_PATH === ':memory:' || path.isAbsolute(parsed.DATABASE_PATH)
       ? parsed.DATABASE_PATH
       : path.resolve(REPO_ROOT, parsed.DATABASE_PATH);
-  return { ...parsed, DATABASE_PATH: dbPath, PAYPAL_ENVIRONMENT: 'SANDBOX', PAYPAL_API_BASE: 'https://api-m.sandbox.paypal.com' };
+  const d = PROVIDER_DEFAULTS[parsed.AI_PROVIDER];
+  const AI_API_KEY = (parsed.AI_PROVIDER === 'anthropic' ? parsed.ANTHROPIC_API_KEY : parsed.AI_PROVIDER === 'gemini' ? parsed.GEMINI_API_KEY : parsed.OPENAI_API_KEY) ?? null;
+  return {
+    ...parsed,
+    AI_MODEL_INVESTIGATOR: parsed.AI_MODEL_INVESTIGATOR ?? d.investigator,
+    AI_MODEL_ADVOCATE: parsed.AI_MODEL_ADVOCATE ?? d.advocate,
+    AI_MODEL_CHALLENGER: parsed.AI_MODEL_CHALLENGER ?? d.challenger,
+    AI_MODEL_JUDGE: parsed.AI_MODEL_JUDGE ?? d.judge,
+    AI_BASE_URL: parsed.OPENAI_BASE_URL ?? d.baseUrl,
+    AI_API_KEY,
+    DATABASE_PATH: dbPath,
+    PAYPAL_ENVIRONMENT: 'SANDBOX',
+    PAYPAL_API_BASE: 'https://api-m.sandbox.paypal.com',
+  };
 }
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');

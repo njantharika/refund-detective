@@ -81,3 +81,19 @@ describe('GET /api/settings/integration-status', () => {
     expect(res.body.ai).toMatchObject({ configured: false, message: 'AI not configured' });
   });
 });
+
+describe('config: AI provider presets', () => {
+  it('gemini uses the OpenAI-compatible endpoint, GEMINI_API_KEY and gemini defaults', () => {
+    const c = loadConfig({ AI_PROVIDER: 'gemini', GEMINI_API_KEY: 'k' });
+    expect(c.AI_BASE_URL).toBe('https://generativelanguage.googleapis.com/v1beta/openai/');
+    expect(c.AI_API_KEY).toBe('k');
+    expect(c.AI_MODEL_INVESTIGATOR).toMatch(/^gemini-/);
+    expect(c.AI_MODEL_JUDGE).toMatch(/^gemini-/);
+  });
+  it('env model overrides win over provider defaults', () => {
+    expect(loadConfig({ AI_PROVIDER: 'gemini', AI_MODEL_JUDGE: 'gemini-x' }).AI_MODEL_JUDGE).toBe('gemini-x');
+  });
+  it('anthropic without a key is not configured', () => {
+    expect(loadConfig({}).AI_API_KEY).toBeNull();
+  });
+});
