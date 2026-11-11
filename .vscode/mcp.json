@@ -1,0 +1,21 @@
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "paypal-access-token",
+      "description": "PayPal SANDBOX access token (OAuth2 bearer token)",
+      "password": true
+    }
+  ],
+  "servers": {
+    "paypal": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@paypal/mcp", "--tools=all"],
+      "env": {
+        "PAYPAL_ENVIRONMENT": "SANDBOX",
+        "PAYPAL_ACCESS_TOKEN": "${input:paypal-access-token}"
+      }
+    }
+  }
+}

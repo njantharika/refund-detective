@@ -1,0 +1,37 @@
+{
+  "name": "@refund-detective/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../.env src/index.ts",
+    "build": "tsc -p tsconfig.build.json && cp -r src/database/migrations dist/database/",
+    "start": "node --env-file-if-exists=../.env dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "seed:sandbox": "tsx --env-file-if-exists=../.env scripts/seed-sandbox.ts",
+    "test:sandbox": "tsx --env-file-if-exists=../.env scripts/sandbox-smoke.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@paypal/mcp": "^1.8.1",
+    "ajv": "^8.20.0",
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.4",
+    "pino": "^10.4.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.6",
+    "@types/supertest": "^7.2.1",
+    "pino-pretty": "^13.2.0",
+    "supertest": "^7.3.2",
+    "tsx": "^4.23.15",
+    "typescript": "5.9",
+    "vitest": "^5.1.0"
+  }
+}
