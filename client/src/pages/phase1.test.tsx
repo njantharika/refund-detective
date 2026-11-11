@@ -10,7 +10,7 @@ const summary = {
   range: { from: '2026-10-12T00:00:00Z', to: '2026-11-11T00:00:00Z' },
   dataMode: 'live',
   kpis: {
-    total: 3, successful: 2, failed: 0, pending: 1,
+    total: 3, nonPaymentActivity: 0, successful: 2, failed: 0, pending: 1,
     capturedVolume: { USD: 131 },
     refunds: { count: 1, amount: { USD: 10 } },
     activity: [{ date: '2026-11-10', count: 3, volume: 131 }],

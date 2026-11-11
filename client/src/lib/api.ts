@@ -128,6 +128,7 @@ export interface DashboardSummary {
   dataMode: 'live' | 'empty';
   kpis: {
     total: number;
+    nonPaymentActivity: number;
     successful: number;
     failed: number;
     pending: number;

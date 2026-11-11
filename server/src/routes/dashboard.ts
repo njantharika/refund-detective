@@ -13,7 +13,10 @@ export function addMoney(acc: Record<string, number>, currency: string, value: s
 }
 
 export function summarize(transactions: NormalizedTransaction[], orderRefunds: { status: string | null; amount: { value: string; currency: string } | null; createdAt: string | null; id: string }[]) {
-  const payments = transactions.filter((t) => !(t.eventCode && REFUND_EVENT_CODES.has(t.eventCode)));
+  // PayPal T-codes: T00xx are payments; T11xx reversals/refunds; others (e.g. T1900 account
+  // adjustments, T03xx funding) are not customer payments. Rows without a code are live orders.
+  const payments = transactions.filter((t) => !t.eventCode || t.eventCode.startsWith('T00'));
+  const otherActivity = transactions.filter((t) => t.eventCode && !t.eventCode.startsWith('T00') && !REFUND_EVENT_CODES.has(t.eventCode));
   const searchRefunds = transactions.filter((t) => t.eventCode && REFUND_EVENT_CODES.has(t.eventCode));
   const volume: Record<string, number> = {};
   for (const t of payments) if (t.amount && (t.status === 'COMPLETED' || t.status === 'PARTIALLY_REFUNDED' || t.status === 'REFUNDED')) addMoney(volume, t.amount.currency, t.amount.value);
@@ -44,6 +47,7 @@ export function summarize(transactions: NormalizedTransaction[], orderRefunds: {
 
   return {
     total: payments.length,
+    nonPaymentActivity: otherActivity.length,
     successful: payments.filter((t) => t.status === 'COMPLETED' || t.status === 'PARTIALLY_REFUNDED' || t.status === 'REFUNDED').length,
     failed: payments.filter((t) => t.status && FAILED.has(t.status)).length,
     pending: payments.filter((t) => t.status === 'PENDING' || t.status === 'CREATED' || t.status === 'APPROVED' || t.status === 'PAYER_ACTION_REQUIRED').length,

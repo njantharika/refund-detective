@@ -81,7 +81,7 @@ export function OverviewPage() {
         <KpiTile label="Refunds" value={k?.refunds.count ?? 0} icon={RotateCcw} loading={loading} hint={d ? moneyMap(k?.refunds.amount) : undefined} />
         <KpiTile label="Open investigations" value={k?.openInvestigations ?? 0} icon={FileSearch} loading={loading} />
         <KpiTile label="Open disputes" value={k?.openDisputes ?? '—'} icon={Scale} loading={loading} hint={d?.sources.disputesError ? 'Dispute lookup failed' : undefined} />
-        <KpiTile label="Data source" value={<span className="text-base">{d?.dataMode === 'live' ? 'PayPal Sandbox' : 'No data yet'}</span>} loading={loading} hint={d ? `Fetched ${relative(d.fetchedAt)}` : undefined} />
+        <KpiTile label="Data source" value={<span className="text-base">{d?.dataMode === 'live' ? 'PayPal Sandbox' : 'No data yet'}</span>} loading={loading} hint={d ? `Fetched ${relative(d.fetchedAt)}${k?.nonPaymentActivity ? ` · ${k.nonPaymentActivity} non-payment entr${k.nonPaymentActivity === 1 ? 'y' : 'ies'} excluded` : ''}` : undefined} />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
