@@ -49,7 +49,15 @@ try {
         console.log(`skip ${r.order_id} [${r.label}]: status ${order.status}`);
         continue;
       }
-      await paypal.registry.write('pay_order', { id: r.order_id }, { approved: true });
+      try {
+        await paypal.registry.write('pay_order', { id: r.order_id }, { approved: true });
+      } catch (e) {
+        const m = e instanceof Error ? e.message : String(e);
+        const declined = /declined|INSTRUMENT_DECLINED/i.test(m);
+        console.log(`FAILED ${r.order_id} [${r.label}]: ${m.slice(0, 200)}`);
+        if (declined) console.log(`  buyer must re-approve with another funding source: https://www.sandbox.paypal.com/checkoutnow?token=${r.order_id}`);
+        continue;
+      }
       const after = (await paypal.transactions.getOrder(r.order_id)).order;
       db.prepare('UPDATE demo_orders SET status = ? WHERE order_id = ?').run(after.status, r.order_id);
       console.log(`captured ${r.order_id} [${r.label}] → ${after.status}, capture ${after.captures[0]?.id ?? '?'}`);
