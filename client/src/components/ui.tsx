@@ -183,3 +183,23 @@ export function Field({ label, children, mono }: { label: string; children: Reac
     </div>
   );
 }
+
+/** Clickable evidence citation. Invalid citations render struck through. */
+export function EvidenceChip({ id, onSelect, invalid, active }: { id: string; onSelect?: (id: string) => void; invalid?: boolean; active?: boolean }) {
+  if (invalid)
+    return (
+      <span className="mono inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-slate-500 line-through ring-1 ring-inset ring-white/10" title="This evidence ID does not exist">
+        {id}
+      </span>
+    );
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect?.(id)}
+      aria-label={`Show evidence ${id}`}
+      className={cx('mono inline-flex items-center rounded px-1.5 py-0.5 text-[11px] ring-1 ring-inset transition-colors', active ? 'bg-electric/25 text-white ring-electric/60' : 'bg-electric/10 text-blue-200 ring-electric/30 hover:bg-electric/20')}
+    >
+      {id}
+    </button>
+  );
+}

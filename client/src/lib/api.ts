@@ -167,3 +167,97 @@ export interface ConnectionTest {
   checks: { tool: string; ok: boolean; path: string | null; durationMs: number; message: string | null; hint: string | null }[];
   at: string;
 }
+
+/* ----------------------------- investigations ----------------------------- */
+
+export type Stage = 'collecting' | 'analyzing' | 'ready' | 'failed' | 'ai_unavailable';
+
+export interface FactSheet {
+  targetCaptureId: string | null;
+  orderId: string | null;
+  orderStatus: string | null;
+  captureStatus: string | null;
+  captureCount: number;
+  currency: string | null;
+  capturedAmount: string | null;
+  completedRefundTotal: string | null;
+  pendingRefundTotal: string | null;
+  remainingRefundable: string | null;
+  refunds: { id: string; status: string | null; amount: string | null; currency: string | null }[];
+  openDisputes: string[];
+  hasOpenDispute: boolean;
+  appPendingRefund: boolean;
+  appRefundsUnknown: boolean;
+  lockHeld: boolean;
+  currencyMismatch: boolean;
+  conflictingStatuses: string[];
+  missingEvidence: string[];
+  refundBlockers: string[];
+  refundEligible: boolean;
+  computedAt: string;
+}
+
+export interface Evidence {
+  id: string;
+  type: string;
+  source: 'paypal_mcp' | 'paypal_rest' | 'webhook_verified' | 'app_internal' | 'merchant_input';
+  description: string;
+  observedAt: string | null;
+  normalized: Record<string, unknown>;
+  verified: boolean;
+  provenance: { tool: string | null; path: string | null; fetchedAt: string } | null;
+}
+
+export interface Finding {
+  title: string;
+  explanation: string;
+  evidenceIds: string[];
+  kind: 'observed' | 'inferred';
+  severity: 'low' | 'medium' | 'high';
+}
+
+export interface Report {
+  caseSummary: string;
+  customerComplaint: string;
+  transactionStatus: string;
+  findings: Finding[];
+  likelyRootCause: { description: string; confidence: number; supportingEvidenceIds: string[]; limitations: string[] };
+  alternativeExplanations: { description: string; evidenceIds: string[] }[];
+  missingInformation: string[];
+  proposedDecision: { type: string; amount: string | null; currency: string | null; reason: string };
+}
+
+export interface Investigation {
+  id: string;
+  transactionId: string | null;
+  orderId: string | null;
+  captureId: string | null;
+  complaint: string | null;
+  status: string;
+  stage: Stage;
+  stageDetail: string | null;
+  error: string | null;
+  running: boolean;
+  createdAt: string;
+  updatedAt: string;
+  factSheet: FactSheet | null;
+  evidence: Evidence[];
+  report: Report | null;
+  citationAudit: { removedFindings: { title: string; invalidIds: string[]; reason: string }[]; droppedIds: string[] } | null;
+  toolCalls: { tool: string; id: string; reason: string; status: string; detail: string; addedEvidenceIds: string[] }[];
+  model: string | null;
+  generatedAt: string | null;
+  messages: { id: number; role: 'merchant' | 'investigator'; content: string; evidenceIds: string[]; kind: string | null; model: string | null; created_at: string }[];
+}
+
+export interface InvestigationListItem {
+  id: string;
+  transactionId: string | null;
+  orderId: string | null;
+  captureId: string | null;
+  status: string;
+  stage: Stage;
+  summary: string | null;
+  confidence: number | null;
+  createdAt: string;
+}

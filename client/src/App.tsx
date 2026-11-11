@@ -5,6 +5,8 @@ import { Card, EmptyState } from './components/ui';
 import { OverviewPage } from './pages/Overview';
 import { TransactionsPage } from './pages/Transactions';
 import { SettingsPage } from './pages/Settings';
+import { InvestigationsPage, NewInvestigationPage } from './pages/Investigations';
+import { InvestigationWorkspace } from './pages/InvestigationWorkspace';
 
 function NotBuiltYet({ title }: { title: string }) {
   return (
@@ -25,7 +27,9 @@ export function App() {
       <Routes>
         <Route path="/" element={<OverviewPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
-        <Route path="/investigations/*" element={<NotBuiltYet title="Investigations" />} />
+        <Route path="/investigations" element={<InvestigationsPage />} />
+        <Route path="/investigations/new" element={<NewInvestigationPage />} />
+        <Route path="/investigations/:id" element={<InvestigationWorkspace />} />
         <Route path="/refunds" element={<NotBuiltYet title="Refunds" />} />
         <Route path="/disputes" element={<NotBuiltYet title="Disputes" />} />
         <Route path="/events" element={<NotBuiltYet title="Event Monitor" />} />

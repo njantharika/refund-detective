@@ -30,4 +30,19 @@ for (const [role, model] of Object.entries(roles)) {
   if (!ok) missing++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${role.padEnd(12)} ${model}${ok ? '' : '  (not in the model list)'}`);
 }
+// Being listed is not proof of access (2.5-* models are listed but return 404 for new keys),
+// so send one tiny structured request per distinct role model.
+const { createAI } = await import('../src/ai/provider.js');
+const { z } = await import('zod');
+const ai = createAI(cfg);
+for (const model of [...new Set(Object.values(roles))]) {
+  const t0 = Date.now();
+  try {
+    const r = await ai.complete({ system: 'Reply with JSON.', messages: [{ role: 'user', content: 'Say ok.' }], schema: z.object({ ok: z.boolean() }), schemaName: 'Ping', model, timeoutMs: 30_000 });
+    console.log(`PASS  live call   ${model} → ${r.model} in ${Date.now() - t0}ms`);
+  } catch (e) {
+    missing++;
+    console.log(`FAIL  live call   ${model}: ${e instanceof Error ? e.message.slice(0, 160) : String(e)}`);
+  }
+}
 process.exit(missing ? 1 : 0);

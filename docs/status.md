@@ -1,6 +1,31 @@
 # Refund Detective — Build Status
 
-_Last updated: 2026-11-11 23:40 IST. Phase 1 is complete in code; live verification is blocked on credentials (B1/B2/B3)._
+_Last updated: 2026-11-12 00:50 IST. Phases 1–2 complete and verified live. Next: Phase 3 (Decision Council + refund)._
+
+## Phase 2 report
+
+**Implemented**
+- `server/src/ai/provider.ts`: `complete({system, messages, schema, model, timeoutMs})` returns Zod-validated JSON. Invalid output gets one retry with the validation error, then fails with `AI_INVALID_OUTPUT`. 429/5xx get 2 backoff retries (honouring Gemini `retryDelay`), then the fallback model. Adapters: OpenAI-compatible (Gemini, live) and Anthropic (untested live: no key). No key means "AI not configured"; nothing is substituted.
+- Evidence: backend-collected `EV-###` items with source, `verified` and provenance (tool and path). Payer PII is redacted. The complaint is `merchant_input`, `verified:false`. Failed sources become *missing evidence*.
+- `rules.ts` FactSheet: pure functions with exact minor-unit money. Covers captured, completed and pending refunds, remaining refundable, open disputes, in-app pending or unknown attempts, locks, currency mismatch, conflicting statuses, missing evidence and refund blockers. `checkRefundAmount()` is ready for the guardrails.
+- Investigator: a planning step can request ≤6 read-only lookups (`get_order/get_refund/get_dispute/search_events`), only for IDs already in the evidence; 60s budget. The report must match the §7 schema. Code strips uncited findings and invalid IDs. Chat answers are citation-checked too.
+- §7 safety rules are in every prompt verbatim, and all free text is wrapped in `<untrusted>`.
+- Migration 002 adds a real `stage`/`stage_detail` (the UI polls the true pipeline state; no fake progress) and `investigation_messages`.
+- API: `POST/GET /api/investigations`, `GET /:id`, `POST /:id/chat`, `POST /:id/refresh-evidence`, `GET /:id/audit`. AI endpoints are rate-limited (12/min).
+- UI: investigations list, new-investigation form, three-panel workspace (FactSheet, cited findings with clickable evidence chips, "allegation only" tag, removed-claims notice, root cause with an "estimate" meter, timeline with verified/app/merchant/missing markers, chat, eligibility card, Markdown copy/download). The council panel says "Not built yet".
+
+**Verified live (2026-11-12)**
+- Investigation `inv_7833cb461c58` on order `2N3925934C459540S`: real PayPal evidence via MCP, 2 allowlisted lookups, report by `gemini-3.5-flash`. All findings cited, 0 stripped, FactSheet respected. A 503 was retried automatically, and the UI showed the real retry status.
+- Live chat answer was correct and cited `EV-001,EV-002`.
+- `npm run check:ai` now does a live call per role model (the list alone was misleading); all three models pass.
+- Headless-Chrome screenshot of the workspace confirms it renders.
+
+**Found and fixed live**
+- Gemini's JSON-schema mode returns 400 for `maxLength/maxItems`. Those are stripped in the request; Zod still enforces them.
+- `gemini-2.5-*` are listed but 404 for new keys; Pro and 4-* have no free quota. Defaults are now `gemini-3.5-flash` (investigator, advocate), `gemini-3-flash-preview` (challenger), `gemini-3.6-flash` (judge), with `gemini-3-flash-preview` as fallback.
+- `.env` had `AI_MODEL_JUDGE=22` (stray). It's blanked so the default is used.
+
+**Tests:** server 77/77, client 14/14, typecheck clean.
 
 ## Phase 1 report
 
@@ -63,8 +88,8 @@ _Last updated: 2026-11-11 23:40 IST. Phase 1 is complete in code; live verificat
 1. [ ] App launches; dashboard loads; SANDBOX visible everywhere
 2. [x] Backend MCP client spawns `@paypal/mcp`, discovers tools, Settings shows status (verified 2026-11-11 with a dummy token; live calls pending B2)
 3. [x] Real Sandbox transactions and orders/captures are retrieved and displayed (verified live 2026-11-12: 3 captured demo orders via get_order + Transaction Search row, merged in /api/transactions)
-4. [ ] Investigation produces a schema-valid, evidence-cited report
-5. [ ] UI shows the evidence behind each finding
+4. [x] Investigation produces a schema-valid, evidence-cited report (live, inv_7833cb461c58)
+5. [x] UI shows the evidence behind each finding (chips scroll to and highlight the timeline item)
 6. [ ] Decision Council runs Advocate and Challenger in parallel, and the Judge's verdict is persisted and displayed
 7. [ ] Guardrails independently validate eligibility and can override the Judge
 8. [ ] Refund requires explicit merchant approval
