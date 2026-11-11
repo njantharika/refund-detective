@@ -55,14 +55,14 @@ _Last updated: 2026-11-11 23:40 IST. Phase 1 is complete in code; live verificat
 ## Blockers
 
 - ~~**B1. Transaction Search 403.**~~ **Resolved 2026-11-11 23:52.** Client-credentials token works; live `list_transactions` returns data via MCP. Original note: Enable *Transaction Search* for the Sandbox app in the PayPal Developer Dashboard (My Apps & Credentials → app → Features), then regenerate credentials. Until then, the explorer can only show orders this app creates (`demo_orders`).
-- **B2. `ANTHROPIC_API_KEY` still needed in `.env`.** PayPal client credentials are set and auto-refresh is verified.
-- **B3. No Sandbox orders exist yet.** Live `get_order` can't be verified until orders are seeded. `npm run seed:sandbox -- create` is a PayPal write and needs merchant go-ahead.
+- ~~**B2.**~~ **Resolved.** AI provider is Gemini (`AI_PROVIDER=gemini`); `npm run check:ai` passes for all 4 role models.
+- ~~**B3. No Sandbox orders exist yet.**~~ **Resolved 2026-11-12.** Seeded and captured: 2N3925934C459540S→0NM23031PE726202M ($42, untouched), 15E54074HC612730M→06W69011L3412890N ($64, for partial refund), 0U257756FL616983T→5PU26238R4698633N ($25, for full refund). The first buyer was an INR/India account and got INSTRUMENT_DECLINED; a US personal buyer worked. Original note: Live `get_order` can't be verified until orders are seeded. `npm run seed:sandbox -- create` is a PayPal write and needs merchant go-ahead.
 
 ## Acceptance criteria (§17)
 
 1. [ ] App launches; dashboard loads; SANDBOX visible everywhere
 2. [x] Backend MCP client spawns `@paypal/mcp`, discovers tools, Settings shows status (verified 2026-11-11 with a dummy token; live calls pending B2)
-3. [~] Real Sandbox transactions (list_transactions verified live: 1 row, a T1900 funding adjustment; orders/captures pending B3) and orders/captures are retrieved and displayed
+3. [x] Real Sandbox transactions and orders/captures are retrieved and displayed (verified live 2026-11-12: 3 captured demo orders via get_order + Transaction Search row, merged in /api/transactions)
 4. [ ] Investigation produces a schema-valid, evidence-cited report
 5. [ ] UI shows the evidence behind each finding
 6. [ ] Decision Council runs Advocate and Challenger in parallel, and the Judge's verdict is persisted and displayed
