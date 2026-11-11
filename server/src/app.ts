@@ -10,16 +10,28 @@ import { errorHandler, AppError } from './lib/errors.js';
 import { transactionsRouter } from './routes/transactions.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { settingsRouter, APP_VERSION } from './routes/settings.js';
+import { investigationsRouter } from './routes/investigations.js';
+import { createAI, modelFor, type AIProvider } from './ai/provider.js';
+import { InvestigationService } from './services/investigation/investigation.service.js';
 
 export interface AppDeps {
   cfg: AppConfig;
   db: DB;
   paypal: PayPalIntegration;
   explorer: ExplorerService;
+  ai: AIProvider;
+  investigations: InvestigationService;
 }
 
-export function buildDeps(cfg: AppConfig, db: DB, paypal: PayPalIntegration): AppDeps {
-  return { cfg, db, paypal, explorer: new ExplorerService(db, paypal) };
+export function buildDeps(cfg: AppConfig, db: DB, paypal: PayPalIntegration, ai: AIProvider = createAI(cfg)): AppDeps {
+  return {
+    cfg,
+    db,
+    paypal,
+    ai,
+    explorer: new ExplorerService(db, paypal),
+    investigations: new InvestigationService({ db, paypal, ai, model: modelFor(cfg, 'investigator') }),
+  };
 }
 
 export function createApp(deps: AppDeps) {
@@ -33,6 +45,7 @@ export function createApp(deps: AppDeps) {
   app.use('/api/settings', settingsRouter(deps));
   app.use('/api/transactions', transactionsRouter(deps));
   app.use('/api/dashboard', dashboardRouter(deps));
+  app.use('/api/investigations', investigationsRouter(deps));
 
   app.use('/api', (_req, _res, next) => next(new AppError(404, 'NOT_FOUND', 'Unknown API route')));
 

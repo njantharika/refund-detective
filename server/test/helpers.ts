@@ -8,6 +8,27 @@ import { PayPalRefundService } from '../src/services/paypal/paypal-refund.servic
 import { PayPalDisputeService } from '../src/services/paypal/paypal-dispute.service.js';
 import type { PayPalIntegration } from '../src/services/paypal/index.js';
 import { buildDeps, createApp } from '../src/app.js';
+import { StructuredAI, TransportHttpError, type RawTransport } from '../src/ai/provider.js';
+
+/** Scripted AI transport: each entry is returned (or thrown) in order; records every request. */
+export class ScriptedTransport implements RawTransport {
+  readonly name = 'scripted';
+  requests: Parameters<RawTransport['call']>[0][] = [];
+  constructor(public script: (string | object | Error | ((req: Parameters<RawTransport['call']>[0]) => string | object))[]) {}
+  async call(req: Parameters<RawTransport['call']>[0]) {
+    this.requests.push(req);
+    const next = this.script.length > 1 ? this.script.shift()! : this.script[0];
+    if (next === undefined) throw new Error('script exhausted');
+    if (next instanceof Error) throw next;
+    const v = typeof next === 'function' ? next(req) : next;
+    return typeof v === 'string' ? v : JSON.stringify(v);
+  }
+}
+export const httpErr = (status: number) => new TransportHttpError(status, `HTTP ${status}`, 0);
+export const fakeAI = (script: ConstructorParameters<typeof ScriptedTransport>[0], fallback: string | null = null) => {
+  const t = new ScriptedTransport(script);
+  return { transport: t, ai: new StructuredAI(t, fallback, { baseBackoffMs: 1 }) };
+};
 
 const idSchema = (key: string, pattern = '^[A-Za-z0-9_-]{8,64}$') => ({
   type: 'object',
@@ -80,7 +101,7 @@ export function testConfig(overrides: Record<string, string> = {}) {
   return loadConfig({ PAYPAL_ENVIRONMENT: 'SANDBOX', PAYPAL_ACCESS_TOKEN: 'test-token', DATABASE_PATH: ':memory:', ...overrides });
 }
 
-export function makeHarness(handlers: Record<string, Handler> = {}) {
+export function makeHarness(handlers: Record<string, Handler> = {}, opts: { ai?: StructuredAI } = {}) {
   const cfg = testConfig();
   const db = openDatabase(':memory:');
   const transport = new FakeTransport(handlers);
@@ -95,7 +116,7 @@ export function makeHarness(handlers: Record<string, Handler> = {}) {
     start: async () => {},
     shutdown: async () => {},
   };
-  const deps = buildDeps(cfg, db, paypal);
+  const deps = buildDeps(cfg, db, paypal, opts.ai ?? new StructuredAI(null, null));
   return { cfg, db, transport, registry, paypal, deps, app: createApp(deps) };
 }
 
