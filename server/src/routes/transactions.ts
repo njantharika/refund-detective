@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { AppDeps } from '../app.js';
 import { AppError } from '../lib/errors.js';
 import { PayPalError, type NormalizedOrder, type NormalizedTransaction } from '../services/paypal/paypal.types.js';
+import { DEMO_MODE_MESSAGE, DEMO_TRANSACTIONS } from '../services/demo.js';
 
 const PAGE_SIZE = 25;
 const DAY = 86_400_000;
@@ -66,6 +67,12 @@ export function transactionsRouter({ explorer, paypal, db }: AppDeps) {
    */
   r.get('/:id/details', async (req, res) => {
     const { id } = IdParam.parse(req.params);
+    if (paypal.auth.mode === 'none') {
+      const t = DEMO_TRANSACTIONS.find((x) => x.captureId === id || x.orderId === id);
+      if (!t) throw new AppError(404, 'NOT_FOUND', `No sample transaction ${id} (Demo mode)`);
+      res.json({ id, order: null, transaction: t, captures: [], refunds: [], disputes: [], events: [], investigations: [], errors: [{ section: 'demo_mode', message: DEMO_MODE_MESSAGE }], demoMode: true });
+      return;
+    }
     const errors: { section: string; message: string }[] = [];
     let order: NormalizedOrder | null = null;
     let transaction: NormalizedTransaction | null = null;
@@ -123,8 +130,8 @@ export function transactionsRouter({ explorer, paypal, db }: AppDeps) {
       .prepare(`SELECT id, status, summary, confidence, created_at FROM investigations WHERE order_id IN (${placeholders}) OR capture_id IN (${placeholders}) OR transaction_id IN (${placeholders}) ORDER BY created_at DESC`)
       .all(...ids, ...ids, ...ids);
     const events = db
-      .prepare(`SELECT id, event_type, resource_id, event_time, signature_verified FROM webhook_events WHERE resource_id IN (${placeholders}) ORDER BY event_time DESC LIMIT 50`)
-      .all(...ids);
+      .prepare(`SELECT id, event_type, resource_id, event_time, signature_verified FROM webhook_events WHERE resource_id IN (${placeholders}) OR ${ids.map(() => 'related_ids LIKE ?').join(' OR ')} ORDER BY event_time DESC LIMIT 50`)
+      .all(...ids, ...ids.map((x) => `%,${x},%`));
 
     res.json({
       id,

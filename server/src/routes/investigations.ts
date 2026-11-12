@@ -14,7 +14,8 @@ const IdParam = z.object({ id: z.string().regex(/^inv_[a-f0-9]{12}$/, 'Invalid i
 const DelibParam = IdParam.extend({ deliberationId: z.string().regex(/^del_[a-f0-9]{12}$/, 'Invalid deliberation id') });
 const RefundParam = IdParam.extend({ refundId: z.string().regex(/^rf_[a-f0-9]{12}$/, 'Invalid refund id') });
 const Amount = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Amount must be a decimal like 42.00');
-const CouncilBody = z.object({ decisionType: CouncilDecisionType, amount: Amount.nullish() });
+const CouncilBody = z.object({ decisionType: CouncilDecisionType, amount: Amount.nullish(), disputeId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).nullish() });
+const AcceptBody = z.object({ deliberationId: z.string().regex(/^del_[a-f0-9]{12}$/), disputeId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/), confirmationText: z.string().max(120) });
 const ApproveBody = z.object({
   deliberationId: z.string().regex(/^del_[a-f0-9]{12}$/),
   amount: Amount,
@@ -33,7 +34,7 @@ export const makeAiLimiter = (limit = 12) =>
     handler: (_req, res) => res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many AI requests. Try again in a minute.' } }),
   });
 
-export function investigationsRouter({ investigations, council, refunds }: AppDeps) {
+export function investigationsRouter({ investigations, council, refunds, disputes }: AppDeps) {
   const r = Router();
   const aiLimiter = makeAiLimiter();
   r.post('/', aiLimiter, (req, res) => {
@@ -76,6 +77,10 @@ export function investigationsRouter({ investigations, council, refunds }: AppDe
   r.post('/:id/refund/:refundId/reconcile', async (req, res) => {
     const { refundId } = RefundParam.parse(req.params);
     res.json(await refunds.reconcileRow(refundId));
+  });
+  r.post('/:id/dispute/accept', async (req, res) => {
+    const { id } = IdParam.parse(req.params);
+    res.json(await disputes.accept(id, AcceptBody.parse(req.body)));
   });
   r.get('/:id/refunds', (req, res) => res.json({ items: refunds.forInvestigation(IdParam.parse(req.params).id) }));
   return r;

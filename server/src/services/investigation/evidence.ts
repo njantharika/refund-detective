@@ -247,7 +247,10 @@ export async function collectEvidence(deps: { db: DB; paypal: PayPalIntegration 
   // 5) Verified webhook events linked to these resources. Unverified events are never evidence.
   const ids = [input.targetId, order?.id, ...(order?.captures.map((c) => c.id) ?? []), ...Object.keys(refundLookups)].filter(Boolean) as string[];
   const ph = ids.map(() => '?').join(',');
-  const events = db.prepare(`SELECT id, paypal_event_id, event_type, resource_id, event_time FROM webhook_events WHERE signature_verified = 1 AND resource_id IN (${ph}) ORDER BY event_time`).all(...ids) as {
+  const relatedClause = ids.map(() => 'related_ids LIKE ?').join(' OR ');
+  const events = db
+    .prepare(`SELECT id, paypal_event_id, event_type, resource_id, event_time FROM webhook_events WHERE signature_verified = 1 AND (resource_id IN (${ph}) OR ${relatedClause}) ORDER BY event_time`)
+    .all(...ids, ...ids.map((x) => `%,${x},%`)) as {
     id: string;
     paypal_event_id: string;
     event_type: string;

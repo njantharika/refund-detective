@@ -82,8 +82,8 @@ export class InvestigatorTools {
         b.dispute(r.dispute, r.path);
       } else {
         const rows = this.deps.db
-          .prepare('SELECT paypal_event_id, event_type, resource_id, event_time FROM webhook_events WHERE signature_verified = 1 AND resource_id = ? ORDER BY event_time LIMIT 20')
-          .all(req.id) as { paypal_event_id: string; event_type: string; resource_id: string; event_time: string }[];
+          .prepare('SELECT paypal_event_id, event_type, resource_id, event_time FROM webhook_events WHERE signature_verified = 1 AND (resource_id = ? OR related_ids LIKE ?) ORDER BY event_time LIMIT 20')
+          .all(req.id, `%,${req.id},%`) as { paypal_event_id: string; event_type: string; resource_id: string; event_time: string }[];
         for (const ev of rows) {
           b.add({
             type: 'webhook_event',

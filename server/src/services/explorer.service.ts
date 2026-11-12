@@ -2,10 +2,13 @@ import type { DB } from '../database/db.js';
 import type { PayPalIntegration } from './paypal/index.js';
 import { orderToTransactions, type SearchOutcome } from './paypal/paypal-transaction.service.js';
 import { PayPalError, type NormalizedOrder, type NormalizedTransaction } from './paypal/paypal.types.js';
+import { DEMO_TRANSACTIONS, DEMO_MODE_MESSAGE } from './demo.js';
 
 export interface ExplorerSources {
   transactionSearch: { available: boolean; error: SearchOutcome['searchError']; count: number; path: string | null };
   demoOrders: { tracked: number; fetched: number; errors: { orderId: string; message: string }[] };
+  /** True only when no PayPal credentials exist; rows are labelled sample data, never PayPal data. */
+  demoMode?: { active: true; message: string };
 }
 
 export interface ExplorerSnapshot {
@@ -37,6 +40,14 @@ export class ExplorerService {
     const key = `${range.from.toISOString()}|${range.to.toISOString()}`;
     if (!force && this.cache && this.cache.key === key && Date.now() - this.cache.at < CACHE_MS) return this.cache.snap;
 
+    if (this.paypal.auth.mode === 'none') {
+      return {
+        transactions: DEMO_TRANSACTIONS.filter((t) => !t.initiatedAt || (t.initiatedAt >= range.from.toISOString() && t.initiatedAt <= range.to.toISOString())),
+        orders: [],
+        sources: { transactionSearch: { available: false, error: null, count: 0, path: null }, demoOrders: { tracked: 0, fetched: 0, errors: [] }, demoMode: { active: true, message: DEMO_MODE_MESSAGE } },
+        fetchedAt: new Date().toISOString(),
+      };
+    }
     const demoIds = this.db.prepare('SELECT order_id FROM demo_orders ORDER BY created_at DESC').pluck().all() as string[];
     const [search, demo] = await Promise.all([
       this.paypal.transactions.search(range),

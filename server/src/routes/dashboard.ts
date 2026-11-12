@@ -60,13 +60,23 @@ export function summarize(transactions: NormalizedTransaction[], orderRefunds: {
   };
 }
 
+/** Refunds the app executed and PayPal verified (get_order never lists refunds, and Transaction Search lags). */
+export function verifiedAppRefunds(db: AppDeps['db']) {
+  return (db.prepare("SELECT paypal_refund_id AS id, amount, currency, status, executed_at FROM refunds WHERE paypal_refund_id IS NOT NULL AND status IN ('completed','pending')").all() as { id: string; amount: string; currency: string; status: string; executed_at: string | null }[]).map((r) => ({
+    id: r.id,
+    status: r.status === 'completed' ? 'COMPLETED' : 'PENDING',
+    amount: { value: r.amount, currency: r.currency },
+    createdAt: r.executed_at,
+  }));
+}
+
 export function dashboardRouter({ explorer, paypal, db }: AppDeps) {
   const r = Router();
   r.get('/summary', async (req, res) => {
     const q = RangeQuery.parse(req.query);
     const range = resolveRange(q);
     const snap = await explorer.snapshot(range, q.refresh === 'true');
-    const kpis = summarize(snap.transactions, snap.orders.flatMap((o) => o.refunds));
+    const kpis = summarize(snap.transactions, [...snap.orders.flatMap((o) => o.refunds), ...verifiedAppRefunds(db)]);
 
     let openDisputes: number | null = null;
     let disputesError: string | null = null;
@@ -82,7 +92,7 @@ export function dashboardRouter({ explorer, paypal, db }: AppDeps) {
 
     res.json({
       range: { from: range.from.toISOString(), to: range.to.toISOString() },
-      dataMode: snap.transactions.length > 0 ? 'live' : 'empty',
+      dataMode: snap.sources.demoMode ? 'demo' : snap.transactions.length > 0 ? 'live' : 'empty',
       kpis: {
         ...kpis,
         openInvestigations: pipeline.filter((p) => p.status === 'open' || p.status === 'awaiting_approval').reduce((s, p) => s + p.n, 0),

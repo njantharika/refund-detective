@@ -4,6 +4,7 @@ import type { AppDeps } from '../app.js';
 import { PayPalError } from '../services/paypal/paypal.types.js';
 import { TRANSACTION_SEARCH_403_HINT } from '../services/paypal/paypal-transaction.service.js';
 import { aiStatus } from '../ai/status.js';
+import { DEMO_MODE_MESSAGE } from '../services/demo.js';
 
 export const APP_VERSION = '0.1.0';
 
@@ -18,6 +19,7 @@ export function settingsRouter({ cfg, db, paypal }: AppDeps) {
     const webhookCount = db.prepare('SELECT COUNT(*) FROM webhook_events').pluck().get() as number;
     res.json({
       appVersion: APP_VERSION,
+      demoMode: auth.mode === 'none' ? { active: true, message: DEMO_MODE_MESSAGE } : null,
       paypal: {
         environment: cfg.PAYPAL_ENVIRONMENT,
         apiBase: cfg.PAYPAL_API_BASE,

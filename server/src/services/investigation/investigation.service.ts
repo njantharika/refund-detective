@@ -45,6 +45,7 @@ export class InvestigationService {
 
   /** Starts an investigation; the pipeline runs in the background and its real stage is persisted. */
   create(input: { targetId: string; captureId?: string | null; complaint: string }): { id: string } {
+    if (this.deps.paypal.auth.mode === 'none' || input.targetId.startsWith('DEMO-')) throw new AppError(409, 'DEMO_MODE', 'Demo mode: investigations need real PayPal Sandbox data. Configure PayPal credentials first.');
     const id = `inv_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
     this.deps.db
       .prepare("INSERT INTO investigations (id, transaction_id, capture_id, complaint, status, stage, stage_detail) VALUES (?, ?, ?, ?, 'open', 'collecting', 'Collecting PayPal evidence…')")

@@ -20,7 +20,7 @@ export interface NormalizedTransaction {
   note: string | null;
   /** For refunds/reversals in Transaction Search: the capture they refer to. */
   referenceId?: string | null;
-  source: 'transaction_search' | 'demo_order';
+  source: 'transaction_search' | 'demo_order' | 'demo_sample';
 }
 
 export interface NormalizedRefund {

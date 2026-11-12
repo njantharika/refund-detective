@@ -57,7 +57,6 @@ export const FAKE_TOOLS: DiscoveredTool[] = [
   { name: 'get_order', inputSchema: idSchema('id', '^[A-Z0-9]{17,32}$') },
   { name: 'get_refund', inputSchema: idSchema('refund_id') },
   { name: 'list_disputes', inputSchema: { type: 'object', properties: { page_size: { type: 'number' }, disputed_transaction_id: { type: ['string', 'null'] } } } },
-  { name: 'get_dispute', inputSchema: idSchema('dispute_id') },
   {
     name: 'create_refund',
     inputSchema: {
@@ -71,7 +70,12 @@ export const FAKE_TOOLS: DiscoveredTool[] = [
       required: ['capture_id'],
     },
   },
-  { name: 'accept_dispute_claim', inputSchema: idSchema('dispute_id') },
+  {
+    name: 'accept_dispute_claim',
+    // Mirrors @paypal/mcp: note is validated with the dispute-ID regex (upstream quirk).
+    inputSchema: { type: 'object', additionalProperties: false, properties: { dispute_id: { type: 'string' }, note: { type: 'string', pattern: '^[A-Za-z0-9_-]{1,255}$' } }, required: ['dispute_id', 'note'] },
+  },
+  { name: 'get_dispute', inputSchema: idSchema('dispute_id', '^[A-Za-z0-9_-]{1,255}$') },
   { name: 'create_order', inputSchema: { type: 'object' } },
   { name: 'pay_order', inputSchema: idSchema('id') },
   { name: 'create_invoice', inputSchema: { type: 'object' } }, // advertised but NOT allowlisted

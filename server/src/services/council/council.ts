@@ -38,19 +38,19 @@ export class CouncilService {
   }
 
   /** Builds the proposal in code and starts the council in the background. */
-  start(investigationId: string, body: { decisionType: CouncilDecisionType; amount?: string | null }): { deliberationId: string } {
+  start(investigationId: string, body: { decisionType: CouncilDecisionType; amount?: string | null; disputeId?: string | null }): { deliberationId: string } {
     const inv = this.deps.investigations.get(investigationId);
     if (inv.stage !== 'ready' || !inv.report || !inv.factSheet) throw new AppError(409, 'NOT_READY', 'The investigation report must be ready before the council can run');
     if (!this.deps.ai.configured) throw new AppError(503, 'AI_NOT_CONFIGURED', 'AI not configured');
-    if (body.decisionType === 'dispute_accept') throw new AppError(400, 'UNSUPPORTED', 'Use the dispute flow to debate accepting a dispute claim');
+    if (body.decisionType === 'dispute_accept' && !body.disputeId) throw new AppError(400, 'DISPUTE_REQUIRED', 'disputeId is required to debate accepting a dispute claim');
     const running = this.deps.db.prepare("SELECT id FROM deliberations WHERE investigation_id = ? AND stage NOT IN ('complete','failed')").pluck().get(investigationId);
     if (running) throw new AppError(409, 'COUNCIL_RUNNING', 'A council is already deliberating on this investigation');
 
     const proposal = buildProposal(body, inv.report.proposedDecision, inv.factSheet);
     const id = `del_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
     this.deps.db
-      .prepare("INSERT INTO deliberations (id, investigation_id, decision_type, proposal_json, capture_id, stage, stage_detail) VALUES (?,?,?,?,?, 'arguing', 'Advocate and Challenger are building their cases…')")
-      .run(id, investigationId, body.decisionType, JSON.stringify(proposal), proposal.captureId);
+      .prepare("INSERT INTO deliberations (id, investigation_id, decision_type, proposal_json, capture_id, dispute_id, stage, stage_detail) VALUES (?,?,?,?,?,?, 'arguing', 'Advocate and Challenger are building their cases…')")
+      .run(id, investigationId, body.decisionType, JSON.stringify(proposal), proposal.captureId, proposal.disputeId);
     audit(this.deps.db, { actor: 'merchant', action: 'council_requested', resourceType: 'deliberation', resourceId: id, request: { investigationId, decisionType: body.decisionType, proposal: proposal.summary } });
 
     const p = this.run(id, investigationId, proposal)
@@ -116,7 +116,7 @@ export class CouncilService {
     // Never let the Judge rule on one side.
     if (!advocate.ok || !challenger.ok) {
       const failure = `${!advocate.ok ? `Advocate failed (${advocate.error})` : ''}${!advocate.ok && !challenger.ok ? '; ' : ''}${!challenger.ok ? `Challenger failed (${challenger.error})` : ''}`;
-      return this.finish(id, investigationId, proposal, factSheet, null, applyGuardrails({ decisionType: 'refund', proposal, judge: null, factSheet, failure: `${failure}. The Judge did not rule on one side.` }));
+      return this.finish(id, investigationId, proposal, factSheet, null, applyGuardrails({ decisionType: proposal.decisionType, proposal, judge: null, factSheet, failure: `${failure}. The Judge did not rule on one side.` }));
     }
 
     // Optional single rebuttal round (each sees the other's round-1 case).
@@ -190,7 +190,7 @@ export class CouncilService {
       request: { judgeVerdict: g.judgeVerdict },
       result: { finalOutcome: g.finalOutcome, overridden: g.overridden, reasons: g.overrideReasons, executable: g.executable },
     });
-    if (g.executable) db.prepare("UPDATE investigations SET status = 'awaiting_approval', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ? AND status = 'open'").run(investigationId);
+    if (g.executable || g.executableDispute) db.prepare("UPDATE investigations SET status = 'awaiting_approval', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ? AND status = 'open'").run(investigationId);
   }
 
   get(investigationId: string, id: string) {
@@ -223,6 +223,8 @@ function serialize(r: Record<string, any>) {
     factSheet: parse(r.fact_sheet_json) as FactSheet | null,
     finalOutcome: r.final_outcome as string | null,
     executable: r.executable_amount ? { amount: r.executable_amount as string, currency: r.executable_currency as string, captureId: r.capture_id as string } : null,
+    executableDispute: (parse(r.guardrail_json) as GuardrailResult | null)?.executableDispute ?? null,
+    disputeId: (r.dispute_id as string | null) ?? null,
     createdAt: r.created_at as string,
     completedAt: r.completed_at as string | null,
   };
@@ -232,10 +234,23 @@ export type Deliberation = ReturnType<typeof serialize>;
 
 /** The proposal is built in code: an explicit merchant amount, else the investigator's refund amount, else the full remaining amount. */
 export function buildProposal(
-  body: { decisionType: CouncilDecisionType; amount?: string | null },
+  body: { decisionType: CouncilDecisionType; amount?: string | null; disputeId?: string | null },
   proposed: { type: Proposal['type']; amount: string | null; currency: string | null; reason: string },
   fs: FactSheet,
 ): Proposal {
+  if (body.decisionType === 'dispute_accept') {
+    return {
+      decisionType: 'dispute_accept',
+      type: 'dispute_accept',
+      amount: null,
+      currency: fs.currency,
+      captureId: fs.targetCaptureId,
+      disputeId: body.disputeId ?? null,
+      reason: 'Merchant asked the council whether to accept the buyer claim',
+      source: 'merchant',
+      summary: `Accept the buyer's claim on dispute ${body.disputeId} (PayPal refunds the buyer the disputed amount; this cannot be undone)`,
+    };
+  }
   if (body.decisionType === 'next_action') {
     return { decisionType: 'next_action', type: proposed.type, amount: proposed.amount, currency: proposed.currency, captureId: fs.targetCaptureId, disputeId: null, reason: proposed.reason, source: 'investigator', summary: `Next action: ${proposed.type.replace(/_/g, ' ')}${proposed.amount ? ` ${proposed.amount} ${proposed.currency ?? ''}` : ''}` };
   }
