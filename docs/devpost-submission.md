@@ -36,7 +36,7 @@ When a customer says "I was charged but never got confirmation", the merchant ha
   - Seeding: `create_order`, `pay_order`.
   - OAuth client-credential tokens refresh automatically and restart the MCP child. A REST fallback is used only if MCP is down. Webhook signatures are verified with PayPal's API.
 - **AI:** Google Gemini via its OpenAI-compatible endpoint, with JSON-schema structured output validated by Zod. Investigator and Advocate use `gemini-3.5-flash`, the Challenger `gemini-3-flash-preview`, and the Judge `gemini-3.6-flash`. Each role has its own fallback model.
-- **Stack:** Node 22, TypeScript, Express 5, SQLite (better-sqlite3), React 19, Vite, Tailwind 4, TanStack Query, Recharts. 148 server and 26 client tests (Vitest).
+- **Stack:** Node 22, TypeScript, Express 5, SQLite (better-sqlite3), React 19, Vite, Tailwind 4, TanStack Query, Recharts. 151 server and 26 client tests (Vitest).
 - **Developer tools:** **Claude Code** (Anthropic, Claude Opus 5.5) was the AI coding assistant used to design, implement, test and document the project. We also used the PayPal Developer Sandbox, VS Code, and headless Chrome (DevTools protocol) for screenshots and 390px responsive checks.
 
 ## Challenges we ran into
