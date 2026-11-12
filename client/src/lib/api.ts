@@ -134,7 +134,7 @@ export interface DashboardSummary {
     failed: number;
     pending: number;
     capturedVolume: Record<string, number>;
-    refunds: { count: number; amount: Record<string, number> };
+    refunds: { count: number; completedCount?: number; pendingCount?: number; amount: Record<string, number>; pendingAmount?: Record<string, number> };
     activity: { date: string; count: number; volume: number }[];
     refundTrend: { date: string; count: number }[];
     openInvestigations: number;
@@ -408,7 +408,7 @@ export interface Insights {
   metrics: {
     payments: { total: number; successful: number; failed: number; pending: number };
     capturedVolume: Record<string, number>;
-    refunds: { count: number; amount: Record<string, number>; ratePercentOfCaptured: Record<string, number | null> };
+    refunds: { count: number; amount: Record<string, number>; ratePercentOfCaptured: Record<string, number | null>; pendingCount?: number; pendingAmount?: Record<string, number> };
     statusDistribution: Record<string, number>;
     disputes: { total: number; open: number } | null;
     council: { verdicts: Record<string, number>; guardrailOverrides: number };

@@ -16,6 +16,13 @@ describe('dashboard KPI classification', () => {
     const k = summarize([row('AAAAAAAAAAAAAAAA1', 'T0006', '42.00'), row('BBBBBBBBBBBBBBBB2', 'T1107', '-10.00')], []);
     expect(k.total).toBe(1);
     expect(k.capturedVolume).toEqual({ USD: 42 });
-    expect(k.refunds).toEqual({ count: 1, amount: { USD: 10 } });
+    expect(k.refunds).toMatchObject({ count: 1, completedCount: 1, pendingCount: 0, amount: { USD: 10 } });
+  });
+  it('reports pending refunds (e.g. PayPal dispute holds) separately from completed amounts', () => {
+    const k = summarize([], [
+      { id: 'R1', status: 'COMPLETED', amount: { value: '20.00', currency: 'USD' }, createdAt: null },
+      { id: 'R2', status: 'PENDING', amount: { value: '51.16', currency: 'USD' }, createdAt: null },
+    ]);
+    expect(k.refunds).toMatchObject({ count: 2, completedCount: 1, pendingCount: 1, amount: { USD: 20 }, pendingAmount: { USD: 51.16 } });
   });
 });

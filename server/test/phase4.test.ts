@@ -252,7 +252,7 @@ describe('insights', () => {
     h.db.prepare('INSERT INTO demo_orders (order_id) VALUES (?)').run(ORDER);
     h.db.prepare("INSERT INTO refunds (id, capture_id, paypal_refund_id, amount, currency, status, idempotency_key, executed_at) VALUES ('rf_1', ?, 'R1', '20.00', 'USD', 'completed', 'k', '2026-11-12T06:03:09Z')").run(CAP);
     const k = (await request(h.app).get('/api/dashboard/summary')).body.kpis;
-    expect(k.refunds).toEqual({ count: 1, amount: { USD: 20 } });
+    expect(k.refunds).toMatchObject({ count: 1, amount: { USD: 20 } });
   });
 });
 

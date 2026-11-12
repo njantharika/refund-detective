@@ -64,7 +64,7 @@ export class InsightsService {
       metrics: {
         payments: { total: k.total, successful: k.successful, failed: k.failed, pending: k.pending },
         capturedVolume: k.capturedVolume,
-        refunds: { count: k.refunds.count, amount: k.refunds.amount, ratePercentOfCaptured: refundRate },
+        refunds: { count: k.refunds.count, completedCount: k.refunds.completedCount, pendingCount: k.refunds.pendingCount, amount: k.refunds.amount, pendingAmount: k.refunds.pendingAmount, ratePercentOfCaptured: refundRate },
         statusDistribution,
         disputes,
         council: { verdicts, guardrailOverrides: overrides },

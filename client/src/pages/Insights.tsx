@@ -63,7 +63,7 @@ export function InsightsPage() {
       <SourceBanner sources={q.data?.sources} />
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <KpiTile label="Captured volume" value={m ? moneyMap(m.capturedVolume) : '—'} loading={q.isLoading} hint={m ? `${m.payments.successful} successful payment(s)` : undefined} />
-        <KpiTile label="Refund volume" value={m ? moneyMap(m.refunds.amount) : '—'} loading={q.isLoading} hint={m ? `${m.refunds.count} refund(s) · ${rate}` : undefined} />
+        <KpiTile label="Refund volume" value={m ? moneyMap(m.refunds.amount) : '—'} loading={q.isLoading} hint={m ? `${m.refunds.count} refund(s) · ${rate}${m.refunds.pendingCount ? ` · ${m.refunds.pendingCount} pending (${moneyMap(m.refunds.pendingAmount)})` : ''}` : undefined} />
         <KpiTile label="Disputes" icon={Scale} value={m?.disputes ? m.disputes.total : '—'} loading={q.isLoading} hint={m?.disputes ? `${m.disputes.open} open` : q.data?.sources.disputesError ? 'Lookup failed' : undefined} />
         <KpiTile label="Guardrail overrides" icon={ShieldAlert} value={m?.council.guardrailOverrides ?? '—'} loading={q.isLoading} hint="Times code made the Judge stricter" />
       </div>

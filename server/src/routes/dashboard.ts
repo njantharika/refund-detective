@@ -22,17 +22,22 @@ export function summarize(transactions: NormalizedTransaction[], orderRefunds: {
   for (const t of payments) if (t.amount && (t.status === 'COMPLETED' || t.status === 'PARTIALLY_REFUNDED' || t.status === 'REFUNDED')) addMoney(volume, t.amount.currency, t.amount.value);
 
   const refundAmount: Record<string, number> = {};
+  const pendingAmount: Record<string, number> = {};
+  let completedCount = 0;
+  let pendingCount = 0;
   const seen = new Set<string>();
   const refundDays: Record<string, number> = {};
   for (const r of orderRefunds) {
     if (seen.has(r.id) || !r.amount) continue;
     seen.add(r.id);
-    if (r.status === 'COMPLETED') addMoney(refundAmount, r.amount.currency, r.amount.value);
+    if (r.status === 'COMPLETED') (addMoney(refundAmount, r.amount.currency, r.amount.value), completedCount++);
+    else if (r.status === 'PENDING') (addMoney(pendingAmount, r.amount.currency, r.amount.value), pendingCount++);
     if (r.createdAt) refundDays[r.createdAt.slice(0, 10)] = (refundDays[r.createdAt.slice(0, 10)] ?? 0) + 1;
   }
   for (const t of searchRefunds) {
     if (!t.amount || (t.transactionId && seen.has(t.transactionId))) continue;
-    addMoney(refundAmount, t.amount.currency, String(Math.abs(Number(t.amount.value))));
+    if (t.status === 'PENDING') (addMoney(pendingAmount, t.amount.currency, String(Math.abs(Number(t.amount.value)))), pendingCount++);
+    else (addMoney(refundAmount, t.amount.currency, String(Math.abs(Number(t.amount.value)))), completedCount++);
     if (t.initiatedAt) refundDays[t.initiatedAt.slice(0, 10)] = (refundDays[t.initiatedAt.slice(0, 10)] ?? 0) + 1;
   }
 
@@ -52,7 +57,8 @@ export function summarize(transactions: NormalizedTransaction[], orderRefunds: {
     failed: payments.filter((t) => t.status && FAILED.has(t.status)).length,
     pending: payments.filter((t) => t.status === 'PENDING' || t.status === 'CREATED' || t.status === 'APPROVED' || t.status === 'PAYER_ACTION_REQUIRED').length,
     capturedVolume: volume,
-    refunds: { count: seen.size + searchRefunds.filter((t) => !(t.transactionId && seen.has(t.transactionId))).length, amount: refundAmount },
+    // amount = completed refunds only; pending ones (e.g. PayPal's dispute holds) are reported separately.
+    refunds: { count: seen.size + searchRefunds.filter((t) => !(t.transactionId && seen.has(t.transactionId))).length, completedCount, pendingCount, amount: refundAmount, pendingAmount },
     activity: Object.values(activity).sort((a, b) => a.date.localeCompare(b.date)),
     refundTrend: Object.entries(refundDays)
       .map(([date, count]) => ({ date, count }))

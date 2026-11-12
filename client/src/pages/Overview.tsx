@@ -80,7 +80,7 @@ export function OverviewPage() {
         <KpiTile label="Successful" value={k?.successful ?? 0} icon={CheckCircle2} loading={loading} />
         <KpiTile label="Failed attempts" value={k?.failed ?? 0} icon={XCircle} loading={loading} hint="Declined or failed captures" />
         <KpiTile label="Pending" value={k?.pending ?? 0} icon={Clock} loading={loading} />
-        <KpiTile label="Refunds" value={k?.refunds.count ?? 0} icon={RotateCcw} loading={loading} hint={d ? moneyMap(k?.refunds.amount) : undefined} />
+        <KpiTile label="Refunds" value={k?.refunds.count ?? 0} icon={RotateCcw} loading={loading} hint={d ? `${moneyMap(k?.refunds.amount)} completed${k?.refunds.pendingCount ? ` · ${k.refunds.pendingCount} pending (${moneyMap(k.refunds.pendingAmount)})` : ""}` : undefined} />
         <KpiTile label="Open investigations" value={k?.openInvestigations ?? 0} icon={FileSearch} loading={loading} />
         <KpiTile label="Open disputes" value={k?.openDisputes ?? '—'} icon={Scale} loading={loading} hint={d?.sources.disputesError ? 'Dispute lookup failed' : undefined} />
         <KpiTile label="Data source" value={<span className="text-base">{d?.dataMode === 'live' ? 'PayPal Sandbox' : d?.dataMode === 'demo' ? 'Sample data (Demo)' : 'No data yet'}</span>} loading={loading} hint={d ? `Fetched ${relative(d.fetchedAt)}${k?.nonPaymentActivity ? ` · ${k.nonPaymentActivity} non-payment entr${k.nonPaymentActivity === 1 ? 'y' : 'ies'} excluded` : ''}` : undefined} />
@@ -123,17 +123,22 @@ export function OverviewPage() {
           ) : latest ? (
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-100">{latest.headline}</p>
-              <ul className="space-y-1.5 text-sm text-slate-300">
-                {latest.observations.slice(0, 3).map((o, i) => (
-                  <li key={i}>
-                    {o.text}{' '}
-                    {o.metrics.map((k) => (
-                      <span key={k} className="mono ml-1 rounded bg-violet/10 px-1 py-0.5 text-[10px] text-violet-200">
-                        {k}
-                      </span>
-                    ))}
+              <ul className="space-y-3 text-sm text-slate-300">
+                {/* Summary tile: at most 2 observations and 2 metric chips each (full detail on the Insights page). */}
+                {latest.observations.slice(0, 2).map((o, i) => (
+                  <li key={i} className="min-w-0">
+                    <p className="line-clamp-3">{o.text}</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {o.metrics.slice(0, 2).map((k) => (
+                        <span key={k} className="mono max-w-full truncate rounded bg-violet/10 px-1.5 py-0.5 text-[10px] text-violet-200 ring-1 ring-inset ring-violet/25" title={k}>
+                          {k}
+                        </span>
+                      ))}
+                      {o.metrics.length > 2 && <span className="rounded px-1.5 py-0.5 text-[10px] text-slate-500">+{o.metrics.length - 2} metrics</span>}
+                    </div>
                   </li>
                 ))}
+                {latest.observations.length > 2 && <li className="text-xs text-slate-500">+{latest.observations.length - 2} more observation(s) on the Insights page</li>}
               </ul>
               <Link to="/insights" className="text-xs text-blue-300 hover:underline">
                 Open Insights →
