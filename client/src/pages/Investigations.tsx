@@ -78,7 +78,8 @@ export function NewInvestigationPage() {
     mutationFn: () => api<{ id: string }>('/api/investigations', { method: 'POST', body: JSON.stringify({ targetId: target, captureId: captureId || null, complaint }) }),
     onSuccess: (r) => nav(`/investigations/${r.id}`),
   });
-  const captures = details.data?.captures ?? [];
+  // Declined/failed capture attempts are shown in the evidence but are never refund targets.
+  const captures = (details.data?.captures ?? []).filter((c) => ['COMPLETED', 'PARTIALLY_REFUNDED', 'REFUNDED', 'PENDING'].includes(c.status ?? ''));
   const submit = (e: FormEvent) => {
     e.preventDefault();
     create.mutate();
@@ -146,7 +147,7 @@ export function NewInvestigationPage() {
           {details.data && (
             <div className="mt-4">
               <Notice tone="info" title={`${money(details.data.order?.amount ?? details.data.transaction?.amount)} · ${details.data.order?.status ?? details.data.transaction?.status ?? ''}`}>
-                {captures.length} capture(s), {details.data.refunds.length} refund(s), {details.data.disputes.length} dispute(s)
+                {captures.length} capture(s) that took money{details.data.captures.length > captures.length ? ` (+${details.data.captures.length - captures.length} declined attempt(s))` : ''}, {details.data.refunds.length} refund(s), {details.data.disputes.length} dispute(s)
               </Notice>
             </div>
           )}

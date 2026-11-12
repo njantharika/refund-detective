@@ -69,6 +69,22 @@ describe('evidence collection and normalization', () => {
   });
 });
 
+describe('capture selection', () => {
+  it('auto-targets the single money-taking capture and ignores declined attempts', async () => {
+    const h = makeHarness({
+      ...paypalHandlers(),
+      get_order: () => {
+        const o = orderFixture({ id: ORDER, captureId: CAP });
+        o.purchase_units[0].payments.captures.push({ id: '79409621J99556340', status: 'DECLINED', amount: { currency_code: 'USD', value: '42.00' }, final_capture: true, create_time: '2026-11-10T09:00:00Z' });
+        return o;
+      },
+    });
+    const c = await collectEvidence({ db: h.db, paypal: h.paypal }, { targetId: ORDER, complaint: 'x' });
+    expect(c.targetCaptureId).toBe(CAP);
+    expect(c.items.filter((e) => e.type === 'capture')).toHaveLength(2); // the declined attempt is still evidence
+  });
+});
+
 describe('report post-validation', () => {
   it('strips findings that cite nonexistent or no evidence, and drops invalid IDs elsewhere', () => {
     const { report: r, audit } = enforceCitations(report(), new Set(['EV-001', 'EV-002']));

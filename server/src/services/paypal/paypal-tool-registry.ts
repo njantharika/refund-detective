@@ -24,6 +24,15 @@ export interface LastCall {
   errorCode: string | null;
 }
 
+/** Keeps the MCP child's credentials valid: refresh before calls, recover once from a 401. */
+export interface TokenGuard {
+  ensureFresh(): Promise<void>;
+  recoverFromAuthError(): Promise<boolean>;
+}
+
+export const isAuthError = (e: unknown) =>
+  e instanceof PayPalError && (e.httpStatus === 401 || /access token|invalid_token|not authorized to access|token.*expired/i.test(e.message)) && e.httpStatus !== 403;
+
 export interface CallResult<T = unknown> {
   data: T;
   path: PayPalPath;
@@ -44,6 +53,7 @@ export class PayPalToolRegistry {
   constructor(
     private readonly mcp: ToolTransport,
     private readonly fallback: PayPalRestFallback | null,
+    private readonly tokenGuard: TokenGuard | null = null,
   ) {}
 
   /** Loads the tool list from the MCP server and compiles validators for allowlisted tools. */
@@ -88,7 +98,21 @@ export class PayPalToolRegistry {
 
   private async invoke<T>(tool: string, args: Record<string, unknown>, timeoutMs: number, idempotencyKey?: string): Promise<CallResult<T>> {
     if (!ALLOWED_TOOLS.includes(tool)) throw new PayPalError(`Tool "${tool}" is not on the allowlist`, 403, 'TOOL_NOT_ALLOWED', tool);
+    await this.tokenGuard?.ensureFresh();
+    try {
+      return await this.invokeOnce<T>(tool, args, timeoutMs, idempotencyKey);
+    } catch (e) {
+      // PayPal rejected the token itself (401): the request was not processed, so re-minting and retrying
+      // once is safe for reads. Writes are never retried automatically; the caller reconciles.
+      const isRead = (READ_TOOLS as readonly string[]).includes(tool);
+      if (isRead && isAuthError(e) && this.tokenGuard && (await this.tokenGuard.recoverFromAuthError())) {
+        return this.invokeOnce<T>(tool, args, timeoutMs, idempotencyKey);
+      }
+      throw e;
+    }
+  }
 
+  private async invokeOnce<T>(tool: string, args: Record<string, unknown>, timeoutMs: number, idempotencyKey?: string): Promise<CallResult<T>> {
     const mcpReady = this.mcp.isReady();
     if (mcpReady && this.validators.size === 0) await this.refreshSchemas();
     const validate = this.validators.get(tool);

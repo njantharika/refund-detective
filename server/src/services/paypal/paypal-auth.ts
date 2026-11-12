@@ -80,10 +80,36 @@ export class PayPalAuth extends EventEmitter {
     if (this.refreshTimer) clearTimeout(this.refreshTimer);
     if (!this.expiresAtMs) return;
     const delay = Math.max(30_000, this.expiresAtMs - REFRESH_MARGIN_MS - Date.now());
-    this.refreshTimer = setTimeout(() => {
-      this.mint().catch((e) => logger.warn({ err: String(e) }, 'scheduled token refresh failed'));
-    }, delay);
+    this.refreshTimer = setTimeout(() => this.refreshWithRetry(0), delay);
     this.refreshTimer.unref();
+  }
+
+  /** A failed background refresh (e.g. laptop asleep, network blip) retries with backoff instead of giving up. */
+  private refreshWithRetry(attempt: number) {
+    this.mint().catch((e) => {
+      const wait = Math.min(30_000 * 2 ** attempt, 5 * 60_000);
+      logger.warn({ err: String(e), retryInMs: wait }, 'scheduled token refresh failed; retrying');
+      if (this.refreshTimer) clearTimeout(this.refreshTimer);
+      this.refreshTimer = setTimeout(() => this.refreshWithRetry(attempt + 1), wait);
+      this.refreshTimer.unref();
+    });
+  }
+
+  /** True when a minted token is missing, expired, or inside the refresh margin. Static tokens are never "stale" (unknown expiry). */
+  isStale(now = Date.now()): boolean {
+    if (this.mode !== 'client_credentials') return false;
+    return !this.token || !this.expiresAtMs || now >= this.expiresAtMs - REFRESH_MARGIN_MS;
+  }
+
+  /** Forces the next getToken() to mint a new token (used after PayPal rejects the current one with 401). */
+  invalidate() {
+    if (this.mode !== 'client_credentials') return;
+    this.token = null;
+    this.expiresAtMs = null;
+  }
+
+  currentToken(): string | null {
+    return this.token;
   }
 
   status(): AuthStatus {

@@ -80,7 +80,7 @@ export function computeFactSheet(input: FactSheetInput): FactSheet {
   const blockers: string[] = [];
 
   if (!input.order) missing.push('Order record (get_order) not available');
-  if (input.order && input.order.captures.length > 1 && !input.targetCaptureId) missing.push('Order has multiple captures; no target capture selected');
+  if (input.order && input.order.captures.length > 1 && !input.targetCaptureId) missing.push('Order has multiple captures that took money; select one to investigate');
   if (input.order && input.order.captures.length === 0) missing.push('Order has no captures: payment was never captured');
   if (input.targetCaptureId && input.order && !capture) conflicts.push(`Capture ${input.targetCaptureId} is not part of order ${input.order.id}`);
 

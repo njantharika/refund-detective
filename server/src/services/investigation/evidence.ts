@@ -145,6 +145,8 @@ export interface CollectedEvidence {
   unavailableSources: string[];
 }
 
+export const MONEY_CAPTURE_STATUSES = new Set(['COMPLETED', 'PARTIALLY_REFUNDED', 'REFUNDED', 'PENDING']);
+
 const errMsg = (e: unknown) => (e instanceof PayPalError ? `${e.code}${e.httpStatus ? ` ${e.httpStatus}` : ''}: ${e.message}` : e instanceof Error ? e.message : String(e));
 
 /**
@@ -181,7 +183,10 @@ export async function collectEvidence(deps: { db: DB; paypal: PayPalIntegration 
   }
 
   const isCaptureTarget = order ? order.captures.some((c) => c.id === input.targetId) : false;
-  const targetCaptureId = input.captureId ?? (isCaptureTarget ? input.targetId : order && order.captures.length === 1 ? order.captures[0].id : null);
+  // When the target is an order, pick its capture automatically only if exactly one capture actually took money
+  // (declined/failed capture attempts stay in the evidence but are never refund targets).
+  const moneyCaptures = order?.captures.filter((c) => c.status && MONEY_CAPTURE_STATUSES.has(c.status)) ?? [];
+  const targetCaptureId = input.captureId ?? (isCaptureTarget ? input.targetId : moneyCaptures.length === 1 ? moneyCaptures[0].id : null);
 
   if (order) {
     b.order(order, orderRaw, orderPath);

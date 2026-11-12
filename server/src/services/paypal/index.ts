@@ -23,16 +23,40 @@ export function createPayPalIntegration(cfg: AppConfig): PayPalIntegration {
   const auth = new PayPalAuth(cfg);
   const mcp = new PayPalMcpClient();
   const fallback = new PayPalRestFallback(auth);
-  const registry = new PayPalToolRegistry(mcp, fallback);
-
-  // Each newly minted token restarts the MCP child so it never runs with an expired token.
-  auth.on('token', (token: string) => {
-    if (mcp.status().state === 'stopped') return;
-    mcp
+  // The MCP child receives its token via env at spawn, so a new token means a child restart.
+  // syncChild() is idempotent and shared, so concurrent callers wait for one restart.
+  let syncing: Promise<void> | null = null;
+  const syncChild = (token: string): Promise<void> => {
+    if (mcp.status().state === 'stopped' || mcp.currentToken() === token) return Promise.resolve();
+    syncing ??= mcp
       .updateToken(token)
       .then(() => registry.refreshSchemas())
-      .catch((e) => logger.error({ err: String(e) }, 'mcp restart after token refresh failed'));
-  });
+      .catch((e) => logger.error({ err: String(e) }, 'mcp restart after token refresh failed'))
+      .finally(() => (syncing = null));
+    return syncing;
+  };
+  const tokenGuard = {
+    async ensureFresh() {
+      if (auth.mode !== 'client_credentials') return;
+      if (auth.isStale()) await syncChild(await auth.getToken());
+      else if (syncing) await syncing;
+    },
+    async recoverFromAuthError() {
+      if (auth.mode !== 'client_credentials') return false;
+      logger.warn('PayPal rejected the access token (401); minting a new one and restarting the MCP child');
+      auth.invalidate();
+      try {
+        await syncChild(await auth.getToken());
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  };
+  const registry: PayPalToolRegistry = new PayPalToolRegistry(mcp, fallback, tokenGuard);
+
+  // Background refreshes also restart the child proactively.
+  auth.on('token', (token: string) => void syncChild(token));
 
   return {
     auth,

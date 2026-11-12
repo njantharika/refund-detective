@@ -145,6 +145,10 @@ export class PayPalMcpClient implements ToolTransport {
     this.restartTimer.unref();
   }
 
+  currentToken(): string | null {
+    return this.token;
+  }
+
   isReady(): boolean {
     return this.state === 'ready' && this.client !== null;
   }
