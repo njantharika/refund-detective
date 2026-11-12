@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import fs from 'node:fs';
+import path from 'node:path';
+import { REPO_ROOT } from '../config.js';
 import type { AppDeps } from '../app.js';
 import { PayPalError } from '../services/paypal/paypal.types.js';
 import { TRANSACTION_SEARCH_403_HINT } from '../services/paypal/paypal-transaction.service.js';
@@ -7,6 +9,12 @@ import { aiStatus } from '../ai/status.js';
 import { DEMO_MODE_MESSAGE } from '../services/demo.js';
 
 export const APP_VERSION = '0.1.0';
+
+export function displayPath(p: string): string {
+  if (p === ':memory:') return p;
+  const rel = path.relative(REPO_ROOT, p);
+  return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? `./${rel}` : path.basename(p);
+}
 
 /** Never returns secret values: only whether each is configured. */
 export function settingsRouter({ cfg, db, paypal }: AppDeps) {
@@ -32,7 +40,8 @@ export function settingsRouter({ cfg, db, paypal }: AppDeps) {
         restFallback: { available: auth.mode !== 'none', active: mcp?.state !== 'ready' && auth.mode !== 'none' },
       },
       ai: aiStatus(cfg),
-      database: { path: cfg.DATABASE_PATH, sizeBytes: dbSize },
+      // Never expose absolute local paths (they can contain the OS username).
+      database: { path: displayPath(cfg.DATABASE_PATH), sizeBytes: dbSize },
       webhooks: { configured: Boolean(cfg.PAYPAL_WEBHOOK_ID), received: webhookCount },
     });
   });

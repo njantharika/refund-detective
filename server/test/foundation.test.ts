@@ -80,6 +80,12 @@ describe('GET /api/settings/integration-status', () => {
     expect(res.body.paypal.auth.warning).toMatch(/token expires; add client credentials/);
     expect(res.body.ai).toMatchObject({ configured: false, message: 'AI not configured' });
   });
+  it('shows the database path relative to the repo, never an absolute path', async () => {
+    const { displayPath } = await import('../src/routes/settings.js');
+    const { REPO_ROOT } = await import('../src/config.js');
+    expect(displayPath(`${REPO_ROOT}/data/x.db`)).toBe('./data/x.db');
+    expect(displayPath('/Users/someone/elsewhere/x.db')).toBe('x.db');
+  });
 });
 
 describe('config: AI provider presets', () => {

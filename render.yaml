@@ -1,0 +1,33 @@
+# Render Blueprint: one web service. Express serves the built React client and owns the
+# @paypal/mcp child process. Secrets are set in the Render dashboard (sync: false), never here.
+services:
+  - type: web
+    name: refund-detective
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: PAYPAL_ENVIRONMENT
+        value: SANDBOX
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: AI_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: COUNCIL_REBUTTAL
+        value: "false"
+      # Free instances have an ephemeral filesystem: the SQLite DB resets on redeploy/restart.
+      # For persistence, attach a Render disk and point DATABASE_PATH at it (e.g. /var/data/refund-detective.db).
+      - key: DATABASE_PATH
+        value: ./data/refund-detective.db
