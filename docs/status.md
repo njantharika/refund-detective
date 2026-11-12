@@ -1,6 +1,21 @@
 # Refund Detective — Build Status
 
-_Last updated: 2026-11-12 11:45 IST. Phases 1–3 complete; first real Sandbox refund executed and verified. Next: Phase 4 polish, then Phase 5 submission._
+_Last updated: 2026-11-12 12:30 IST. Phases 1–5 code and docs complete. Remaining: public repo, deploy, video (merchant actions)._
+
+## Phase 4–5 report
+
+**Implemented**
+- **Disputes:** live list and detail (redacted), an AI summary whose key facts must cite real payload fields, and council `dispute_accept` with its own guardrails (dispute open live; no refund in progress). Accepting requires the exact confirmation, a lock and one execution per deliberation (`dispute_actions`). The note is a slug to satisfy @paypal/mcp's regex, and the result is verified with `get_dispute`. The no-evidence-submission limitation is stated in the UI.
+- **Event Monitor:** signature verification via PayPal `verify-webhook-signature`, dedupe on event ID, related-ID linking, redaction. Unverified events are never evidence. Without `PAYPAL_WEBHOOK_ID` the page says "Not configured" with tunnel and webhook setup steps; nothing is simulated.
+- **Insights:** metrics from real data (payments, volume, refund rate, status mix, disputes, council verdicts, guardrail overrides, uncited claims removed). The AI summary must cite metric keys; uncited observations are removed. No savings or impact claims.
+- **Demo mode** (no PayPal credentials only): `DEMO-` sample rows, a banner on every page, and investigations, councils and refunds refused.
+- **Responsive:** verified with CDP device emulation at 390px; no horizontal overflow on Overview, Transactions, the investigation workspace, Insights or Settings.
+- **Submission:** README, architecture (Mermaid), MCP tool inventory, investigation methodology, decision council, demo script, Devpost draft, 9 screenshots, `render.yaml`, clean production build verified.
+- **Privacy:** Settings showed the absolute DB path (it contains the OS username); it now shows a repo-relative path. The secret and PII scan of tracked files and full git history is clean.
+
+**Not verified live (stated in the docs):** dispute accept (the Sandbox has no disputes), webhooks (no tunnel configured), the Anthropic adapter (no key). The Insights AI summary hit the Gemini free-tier **daily** quota (20 requests per model per day); the metrics endpoint works live.
+
+**Tests:** server 139/139, client 26/26.
 
 ## Phase 3 report
 
@@ -98,6 +113,9 @@ _Last updated: 2026-11-12 11:45 IST. Phases 1–3 complete; first real Sandbox r
 
 ## Blockers
 
+- **Open:** public GitHub repo, Render deploy and the demo video need the merchant (accounts and recording). The Gemini free-tier daily quota resets at midnight Pacific.
+
+
 - ~~**B1. Transaction Search 403.**~~ **Resolved 2026-11-11 23:52.** Client-credentials token works; live `list_transactions` returns data via MCP. Original note: Enable *Transaction Search* for the Sandbox app in the PayPal Developer Dashboard (My Apps & Credentials → app → Features), then regenerate credentials. Until then, the explorer can only show orders this app creates (`demo_orders`).
 - ~~**B2.**~~ **Resolved.** AI provider is Gemini (`AI_PROVIDER=gemini`); `npm run check:ai` passes for all 4 role models.
 - ~~**B3. No Sandbox orders exist yet.**~~ **Resolved 2026-11-12.** Seeded and captured: 2N3925934C459540S→0NM23031PE726202M ($42, untouched), 15E54074HC612730M→06W69011L3412890N ($64, for partial refund), 0U257756FL616983T→5PU26238R4698633N ($25, for full refund). The first buyer was an INR/India account and got INSTRUMENT_DECLINED; a US personal buyer worked. Original note: Live `get_order` can't be verified until orders are seeded. `npm run seed:sandbox -- create` is a PayPal write and needs merchant go-ahead.
@@ -115,7 +133,7 @@ _Last updated: 2026-11-12 11:45 IST. Phases 1–3 complete; first real Sandbox r
 9. [x] An authorized Sandbox refund executes, and `get_refund` verifies it (5YE09135FX432004L, USD 20.00, COMPLETED)
 10. [x] Audit log records investigator, council and refund actions
 11. [x] Duplicate-refund scenario is blocked
-12. [ ] Errors and empty states are handled; Demo mode is clearly labelled
-13. [ ] README lets a stranger run it; MIT LICENSE present
-14. [ ] No secrets in the repo or history; public repo; demo URL or run instructions
-15. [ ] Demo video under 3 minutes and Devpost draft complete
+12. [x] Errors and empty states are handled; Demo mode is clearly labelled
+13. [x] README lets a stranger run it; MIT LICENSE present
+14. [~] No secrets in the repo or history (scanned, clean); run instructions in README; **public repo and Render URL pending merchant action**
+15. [~] Devpost draft complete (docs/devpost-submission.md); **video pending (merchant records; script in docs/demo-script.md)**
