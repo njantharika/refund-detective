@@ -2,12 +2,14 @@ import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { AlertTriangle, Bot, CheckCircle2, CircleDashed, Copy, Database, Download, Gavel, Loader2, MessageSquare, RefreshCw, Search, Send, ShieldCheck, User } from 'lucide-react';
-import { api, type Evidence, type Investigation } from '../lib/api';
+import { api, type Deliberation, type Evidence, type Investigation, type RefundRecord } from '../lib/api';
 import { dateTime, NA } from '../lib/format';
 import { reportMarkdown } from '../lib/report-md';
 import { PageHeader } from '../components/Shell';
 import { Button, Card, cx, EmptyState, ErrorState, EvidenceChip, Field, Notice, Pill, Skeleton, StatusBadge } from '../components/ui';
 import { STAGE_LABEL } from './Investigations';
+import { CouncilPanel, useCouncil, VerdictBadge } from '../components/CouncilPanel';
+import { RefundModal } from '../components/RefundModal';
 
 const SOURCE_META: Record<Evidence['source'], { label: string; icon: typeof ShieldCheck; tone: 'success' | 'info' | 'warning' | 'neutral' | 'violet' }> = {
   paypal_mcp: { label: 'PayPal · MCP', icon: ShieldCheck, tone: 'success' },
@@ -21,6 +23,7 @@ export function InvestigationWorkspace() {
   const { id = '' } = useParams();
   const qc = useQueryClient();
   const [highlight, setHighlight] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState<Deliberation | null>(null);
   const inv = useQuery({
     queryKey: ['investigation', id],
     queryFn: () => api<Investigation>(`/api/investigations/${id}`),
@@ -99,14 +102,14 @@ export function InvestigationWorkspace() {
         {/* RIGHT: chat, council, resolution */}
         <div className="space-y-6">
           <ChatPanel inv={d} valid={valid} onSelect={select} />
-          <Card title="Decision Council" subtitle="Adversarial review before any money moves">
-            <EmptyState icon={Gavel} title="Not built yet">
-              Advocate vs. Challenger, then an impartial Judge with deterministic guardrails. This arrives in the next build phase.
-            </EmptyState>
-          </Card>
-          <ResolutionCard inv={d} />
+          <ResolutionCard inv={d} onReview={setReviewing} />
         </div>
       </div>
+
+      <div className="mt-6">
+        <CouncilPanel inv={d} onSelect={select} onReview={setReviewing} />
+      </div>
+      <RefundModal inv={d} deliberation={reviewing} onClose={() => setReviewing(null)} />
     </>
   );
 }
@@ -375,18 +378,21 @@ function ChatPanel({ inv, valid, onSelect }: { inv: Investigation; valid: Set<st
   );
 }
 
-function ResolutionCard({ inv }: { inv: Investigation }) {
+function ResolutionCard({ inv, onReview }: { inv: Investigation; onReview: (d: Deliberation) => void }) {
   const fs = inv.factSheet;
   const p = inv.report?.proposedDecision;
+  const { latest } = useCouncil(inv.id);
+  const refunds = useQuery({ queryKey: ['refunds', inv.id], queryFn: () => api<{ items: RefundRecord[] }>(`/api/investigations/${inv.id}/refunds`), refetchInterval: (q) => (q.state.data?.items.some((r) => r.status === 'unknown' || r.status === 'requested') ? 4000 : false) });
+  const executable = latest?.decisionType === 'refund' && latest.executable && (latest.finalOutcome === 'APPROVE' || latest.finalOutcome === 'APPROVE_MODIFIED') && !refunds.data?.items.some((r) => r.deliberationId === latest.id);
   return (
-    <Card title="Refund eligibility" subtitle="Deterministic checks. Recomputed live before any refund.">
+    <Card title="Resolution" subtitle="Eligibility is deterministic and recomputed live before any refund.">
       {!fs ? (
         <Skeleton className="h-16" />
       ) : (
         <>
           <div className="flex items-center gap-2">
             {fs.refundEligible ? <CheckCircle2 aria-hidden className="h-4 w-4 text-teal" /> : <AlertTriangle aria-hidden className="h-4 w-4 text-amber-300" />}
-            <span className="text-sm font-medium text-slate-100">{fs.refundEligible ? `Eligible · up to ${fs.remainingRefundable} ${fs.currency}` : 'Not eligible right now'}</span>
+            <span className="text-sm font-medium text-slate-100">{fs.refundEligible ? `Eligible · up to ${fs.remainingRefundable} ${fs.currency}` : 'Not eligible (at investigation time)'}</span>
           </div>
           {fs.refundBlockers.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-300">{fs.refundBlockers.map((b) => <li key={b}>{b}</li>)}</ul>}
         </>
@@ -403,10 +409,32 @@ function ResolutionCard({ inv }: { inv: Investigation }) {
           <p className="mt-1 text-xs text-slate-400">{p.reason}</p>
         </div>
       )}
-      <Button className="mt-4 w-full" disabled title="Requires a Decision Council verdict">
-        <Gavel className="h-4 w-4" /> Review &amp; approve refund
+      {latest && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-slate-300">
+          Latest council: <VerdictBadge v={latest.finalOutcome} /> {!latest.finalOutcome && <span className="text-xs text-slate-500">deliberating…</span>}
+        </div>
+      )}
+      <Button className="mt-4 w-full" disabled={!executable} onClick={() => latest && onReview(latest)}>
+        <Gavel className="h-4 w-4" /> Review &amp; approve refund{executable && latest?.executable ? ` · ${latest.executable.currency} ${latest.executable.amount}` : ''}
       </Button>
-      <p className="mt-2 text-center text-[11px] text-slate-500">Disabled until the Decision Council approves and guardrails pass.</p>
+      <p className="mt-2 text-center text-[11px] text-slate-500">{executable ? 'Council approved and guardrails passed. You make the final call.' : 'Enabled only after a council APPROVE that passes guardrails.'}</p>
+
+      {refunds.data && refunds.data.items.length > 0 && (
+        <div className="mt-5">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Refunds on this case</h4>
+          <ul className="mt-2 space-y-2">
+            {refunds.data.items.map((r) => (
+              <li key={r.id} className="rounded-lg border border-white/[0.05] bg-ink-900/60 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm tabular-nums text-slate-100">{r.amount} {r.currency}</span>
+                  <StatusBadge status={r.status === 'unknown' ? 'RECONCILING' : r.status.toUpperCase()} tone={r.status === 'completed' ? 'success' : r.status === 'failed' ? 'danger' : 'warning'} />
+                </div>
+                <div className="mono mt-0.5 truncate text-[11px] text-slate-500">{r.paypalRefundId ?? r.id}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </Card>
   );
 }

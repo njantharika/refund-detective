@@ -261,3 +261,96 @@ export interface InvestigationListItem {
   confidence: number | null;
   createdAt: string;
 }
+
+/* ----------------------------- council + refunds ----------------------------- */
+
+export type Verdict = 'APPROVE' | 'APPROVE_MODIFIED' | 'REJECT' | 'NEEDS_MORE_INFO' | 'ESCALATE_TO_HUMAN';
+
+export interface CouncilArgument {
+  claim: string;
+  kind: 'evidence' | 'business_judgement' | 'risk';
+  evidenceIds: string[];
+  factSheetFields: string[];
+  weight: 'low' | 'medium' | 'high';
+  citationStatus: 'valid' | 'invalid_citation' | 'uncited';
+  invalidEvidenceIds: string[];
+  invalidFactSheetFields: string[];
+}
+
+export interface CouncilSide {
+  role: 'advocate' | 'challenger';
+  position: 'for' | 'against';
+  thesis: string;
+  arguments: CouncilArgument[];
+  strongestPoint: string;
+  saferAlternative: { type: string; amount: string | null; rationale: string } | null;
+  validCount: number;
+}
+
+export type SideResult = { ok: true; data: CouncilSide; model: string } | { ok: false; error: string };
+
+export interface JudgeVerdict {
+  verdict: Verdict;
+  decision: { type: string; amount: string | null; currency: string | null };
+  rationale: string;
+  decisiveArguments: { from: 'advocate' | 'challenger'; claim: string; evidenceIds: string[] }[];
+  rejectedArguments: { from: string; claim: string; whyRejected: string }[];
+  strongestDissent: string;
+  confidence: number;
+  conditions: string[];
+}
+
+export interface GuardrailResult {
+  judgeVerdict: Verdict | null;
+  finalOutcome: Verdict;
+  overridden: boolean;
+  overrideReasons: string[];
+  checks: { rule: string; passed: boolean; outcome: Verdict | null; detail: string }[];
+  executable: { amount: string; currency: string; captureId: string } | null;
+}
+
+export interface Deliberation {
+  id: string;
+  investigationId: string;
+  decisionType: 'refund' | 'dispute_accept' | 'next_action';
+  stage: 'arguing' | 'rebuttal' | 'judging' | 'guardrails' | 'complete' | 'failed';
+  stageDetail: string | null;
+  error: string | null;
+  proposal: { summary: string; amount: string | null; currency: string | null; captureId: string | null; reason: string; source: string };
+  advocate: SideResult | null;
+  challenger: SideResult | null;
+  rebuttals: unknown;
+  judge: (JudgeVerdict & { error?: undefined }) | { error: string } | null;
+  guardrails: GuardrailResult | null;
+  factSheet: FactSheet | null;
+  finalOutcome: Verdict | null;
+  executable: { amount: string; currency: string; captureId: string } | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface RefundRecord {
+  id: string;
+  investigationId: string;
+  deliberationId: string;
+  captureId: string;
+  paypalRefundId: string | null;
+  amount: string;
+  currency: string;
+  reason: string | null;
+  status: 'requested' | 'pending' | 'completed' | 'failed' | 'unknown';
+  idempotencyKey: string;
+  approvedBy: string;
+  approvedAt: string;
+  executedAt: string | null;
+  paypalResponseSummary: string | null;
+  createdAt: string;
+  reconciling: boolean;
+}
+
+export interface Eligibility {
+  factSheet: FactSheet;
+  eligible: boolean;
+  reasons: string[];
+  checkedAt: string;
+}

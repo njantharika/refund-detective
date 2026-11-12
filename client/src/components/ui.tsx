@@ -203,3 +203,32 @@ export function EvidenceChip({ id, onSelect, invalid, active }: { id: string; on
     </button>
   );
 }
+
+/** Accessible modal dialog: focus moves in, Escape closes, focus returns to the opener. */
+export function Modal({ open, onClose, title, children, labelledBy = 'modal-title' }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; labelledBy?: string }) {
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.activeElement as HTMLElement | null;
+    panel.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      prev?.focus?.();
+    };
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onClick={onClose} aria-hidden />
+      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={labelledBy} tabIndex={-1} className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[12px] border border-white/[0.08] bg-ink-900 shadow-2xl outline-none">
+        <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+          <h2 id={labelledBy} className="text-sm font-semibold text-white">{title}</h2>
+          <Button variant="ghost" onClick={onClose} aria-label="Close dialog"><X className="h-4 w-4" /></Button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
