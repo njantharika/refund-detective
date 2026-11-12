@@ -104,8 +104,8 @@ _Last updated: 2026-11-12 11:45 IST. Phases 1–3 complete; first real Sandbox r
 
 ## Acceptance criteria (§17)
 
-1. [ ] App launches; dashboard loads; SANDBOX visible everywhere
-2. [x] Backend MCP client spawns `@paypal/mcp`, discovers tools, Settings shows status (verified 2026-11-11 with a dummy token; live calls pending B2)
+1. [x] App launches; dashboard loads; SANDBOX visible everywhere (SANDBOX pill in the top bar on every page; boot refuses non-SANDBOX)
+2. [x] Backend MCP client spawns `@paypal/mcp`, discovers tools, Settings shows status (live: 28 tools, all reads and the refund write served via MCP)
 3. [x] Real Sandbox transactions and orders/captures are retrieved and displayed (verified live 2026-11-12: 3 captured demo orders via get_order + Transaction Search row, merged in /api/transactions)
 4. [x] Investigation produces a schema-valid, evidence-cited report (live, inv_7833cb461c58)
 5. [x] UI shows the evidence behind each finding (chips scroll to and highlight the timeline item)
