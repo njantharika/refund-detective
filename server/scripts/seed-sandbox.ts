@@ -16,6 +16,12 @@ const SCENARIOS = [
   { label: 'untouched', item: 'Detective Field Notebook', value: '42.00' },
   { label: 'partial-refund', item: 'Magnifier Pro Lens', value: '64.00' },
   { label: 'full-refund', item: 'Trench Coat (Sandbox)', value: '25.00' },
+  { label: 'wrong-size', item: 'Fedora Hat, size M', value: '38.50' },
+  { label: 'late-delivery', item: 'Evidence Kit Deluxe', value: '129.99' },
+  { label: 'duplicate-charge-claim', item: 'Fingerprint Powder Set', value: '17.25' },
+  { label: 'not-received', item: 'Noir Novel Box Set', value: '54.00' },
+  { label: 'damaged', item: 'Vintage Desk Lamp', value: '86.40' },
+  { label: 'happy-customer', item: 'Gift Card (Sandbox)', value: '10.00' },
 ];
 
 const [cmd = 'status', countArg] = process.argv.slice(2);
@@ -27,8 +33,10 @@ await paypal.start();
 try {
   if (cmd === 'create') {
     const count = Math.min(Number(countArg ?? SCENARIOS.length) || SCENARIOS.length, 10);
+    // Continue through the catalogue after the orders that already exist.
+    const offset = db.prepare('SELECT COUNT(*) FROM demo_orders').pluck().get() as number;
     for (let i = 0; i < count; i++) {
-      const s = SCENARIOS[i % SCENARIOS.length];
+      const s = SCENARIOS[(offset + i) % SCENARIOS.length];
       const { data } = await paypal.registry.write<Record<string, unknown>>(
         'create_order',
         { currencyCode: 'USD', items: [{ name: s.item, quantity: 1, itemCost: Number(s.value), taxPercent: 0, itemTotal: Number(s.value) }] },
