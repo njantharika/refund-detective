@@ -13,6 +13,9 @@ import { settingsRouter, APP_VERSION } from './routes/settings.js';
 import { investigationsRouter } from './routes/investigations.js';
 import { createAI, modelFor, type AIProvider } from './ai/provider.js';
 import { InvestigationService } from './services/investigation/investigation.service.js';
+import { CouncilService } from './services/council/council.js';
+import { RefundService } from './services/refund/refund.service.js';
+import { refundsRouter, auditRouter } from './routes/refunds.js';
 
 export interface AppDeps {
   cfg: AppConfig;
@@ -21,17 +24,15 @@ export interface AppDeps {
   explorer: ExplorerService;
   ai: AIProvider;
   investigations: InvestigationService;
+  council: CouncilService;
+  refunds: RefundService;
 }
 
 export function buildDeps(cfg: AppConfig, db: DB, paypal: PayPalIntegration, ai: AIProvider = createAI(cfg)): AppDeps {
-  return {
-    cfg,
-    db,
-    paypal,
-    ai,
-    explorer: new ExplorerService(db, paypal),
-    investigations: new InvestigationService({ db, paypal, ai, model: modelFor(cfg, 'investigator') }),
-  };
+  const investigations = new InvestigationService({ db, paypal, ai, model: modelFor(cfg, 'investigator') });
+  const council = new CouncilService({ db, paypal, ai, cfg, investigations });
+  const refunds = new RefundService({ db, paypal, investigations, council });
+  return { cfg, db, paypal, ai, explorer: new ExplorerService(db, paypal), investigations, council, refunds };
 }
 
 export function createApp(deps: AppDeps) {
@@ -46,6 +47,8 @@ export function createApp(deps: AppDeps) {
   app.use('/api/transactions', transactionsRouter(deps));
   app.use('/api/dashboard', dashboardRouter(deps));
   app.use('/api/investigations', investigationsRouter(deps));
+  app.use('/api/refunds', refundsRouter(deps));
+  app.use('/api/audit', auditRouter(deps));
 
   app.use('/api', (_req, _res, next) => next(new AppError(404, 'NOT_FOUND', 'Unknown API route')));
 

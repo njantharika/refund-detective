@@ -121,7 +121,7 @@ export function makeHarness(handlers: Record<string, Handler> = {}, opts: { ai?:
 }
 
 /** A captured Orders v2 response with one capture and the given refunds. */
-export function orderFixture(opts: { id?: string; captureId?: string; amount?: string; currency?: string; refunds?: { id: string; value: string; status?: string }[] } = {}) {
+export function orderFixture(opts: { id?: string; captureId?: string; amount?: string; currency?: string; refunds?: { id: string; value: string; status?: string; createdAt?: string }[] } = {}) {
   const id = opts.id ?? '5O190127TN364715T';
   const captureId = opts.captureId ?? '3C679366HH908993F';
   const currency = opts.currency ?? 'USD';
@@ -141,7 +141,7 @@ export function orderFixture(opts: { id?: string; captureId?: string; amount?: s
             id: r.id,
             status: r.status ?? 'COMPLETED',
             amount: { currency_code: currency, value: r.value },
-            create_time: '2026-11-10T12:00:00Z',
+            create_time: r.createdAt ?? '2026-11-10T12:00:00Z',
             links: [{ rel: 'up', href: `https://api.sandbox.paypal.com/v2/payments/captures/${captureId}` }],
           })),
         },
