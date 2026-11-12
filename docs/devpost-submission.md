@@ -4,7 +4,11 @@
 
 **Project name:** Refund Detective
 **Tagline:** Every payment has a story. Let AI investigate it.
-**Links:** Demo video ⟨YouTube URL⟩ · Repo ⟨public GitHub URL⟩ · Live demo ⟨Render URL, or "run locally: see README"⟩
+**Elevator pitch (≤200 chars):** Refund Detective investigates PayPal payment complaints with cited evidence, debates every refund in an adversarial AI council, and refunds only after code guardrails and merchant approval.
+**Links:** Demo video ⟨public YouTube URL⟩ · Repo ⟨public GitHub URL⟩ · Live demo ⟨Render URL⟩
+**Who it's for:** small and mid-size online merchants and their support or operations staff, who handle "where's my order / I was charged / refund me" messages without a payments team.
+**New project:** built from scratch during the Submission Period (November 11–12, 2026).
+**Sponsor tools used:** Render (hosting the live demo as a single web service, via `render.yaml`).
 
 ## Inspiration
 When a customer says "I was charged but never got confirmation", the merchant has to piece together orders, captures, refunds and disputes from several screens. Then they make a money-moving decision under pressure. Refunding twice, refunding during an open dispute, or refunding on an unverified claim are all easy mistakes. We wanted an AI that *investigates* rather than chats, and that can't move money on its own.
@@ -59,4 +63,5 @@ LLMs are good at weighing evidence and terrible at being the source of truth for
 `paypal-mcp` · `paypal-rest-api` · `paypal-sandbox` · `google-gemini` · `claude-code` · `typescript` · `node.js` · `express` · `react` · `vite` · `tailwindcss` · `sqlite` · `zod` · `vitest`
 
 ## Testing instructions for judges
-See the README "Quick start". You need a PayPal Sandbox app (client ID and secret) and a Gemini API key. Without PayPal credentials the app runs in a clearly labelled **Demo mode**: sample data only, with investigations and refunds disabled.
+**Hosted demo:** ⟨Render URL⟩. It is connected to our PayPal **Sandbox** merchant and Gemini, with no login. Open **Transactions**, pick a captured payment, then **Investigate with AI** → **Convene council** → (on APPROVE) **Review & approve refund**. Only Sandbox money moves. The free instance may take about 30 seconds to wake up.
+**Run locally:** see the README "Quick start". You need a PayPal Sandbox app (client ID and secret) and a Gemini API key. Without PayPal credentials the app runs in a clearly labelled **Demo mode**: sample data only, with investigations and refunds disabled.

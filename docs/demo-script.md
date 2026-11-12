@@ -1,27 +1,54 @@
-# Demo video script (under 3:00)
+# Demo video: run of show (target 2:45, hard limit < 3:00)
 
-Real footage only, against PayPal Sandbox. No copyrighted music. Record at 1440×900 or larger, with the browser zoomed to 90–100%.
+The rules say the video must:
+- be **< 3 minutes**; judges are not required to watch beyond that;
+- show **footage of the project functioning**;
+- be **public on YouTube**;
+- contain **no third-party trademarks or copyrighted music** without permission.
 
-## Before recording (about 10 minutes)
-1. Run `npm run check:ai`. All role models must PASS. On the Gemini free tier each model allows about 20 requests per day, so record on a day you haven't used up the quota, or enable billing on the key.
-2. Run `npm run dev` and open http://localhost:5173.
-3. Use the **$25.00 order `0U257756FL616983T`** (capture `5PU26238R4698633N`, untouched) for the live refund. Its seed label is "full-refund".
-4. Optional rehearsal: start the investigation for that order once before recording. Recording the live run is better, though: it shows the real pipeline stages.
-5. Close other tabs, hide bookmarks, and make sure nothing in view shows an email address or account name.
+It is also scored on *Presentation*: "Does the video clearly demonstrate the project working end-to-end? Does the pitch communicate what problem is solved, who it's for, and why it matters?"
 
-## Shot list
+## 0. Pre-flight (15 minutes, before you press record)
+1. **AI quota.** Enable billing on the Gemini key in Google AI Studio. The free tier allows about 20 requests per model per day, and the demo makes about 9 calls live. Then run `npm run check:ai`; every line must say PASS.
+2. **App running:** `npm run dev`, then open http://localhost:5173.
+3. **Demo order:** the $25.00 Trench Coat, order `0U257756FL616983T`, capture `5PU26238R4698633N`. It is COMPLETED, with no refunds, disputes or investigations.
+4. **Clean browser** (trademark rule plus privacy):
+   - Use a **new Chrome profile or Guest window**, so there is no profile avatar, extensions or bookmarks.
+   - Hide the toolbar's "Ask Gemini" button, which is a third-party logo.
+   - Better still, record the page area only: macOS **⌘⇧5 → Record Selected Portion**, drawn around the web page.
+   - Zoom to 100% in a 1440×900 or larger window.
+5. **Never on screen:** `.env`, terminals with keys, the PayPal developer dashboard credentials page, and real email addresses.
+6. **Microphone:** ⌘⇧5 → Options → your microphone. Do a 5-second test and play it back.
+7. Close notifications (Do Not Disturb on).
 
-| Time | Scene | On screen | Voice-over (suggested) |
+## 1. Shot list
+
+| # | Time | Do this on screen | Say this (about 140 words per minute) |
 |---|---|---|---|
-| 0:00–0:15 | **Problem** | Title card, then the Overview | "A customer writes: 'I was charged but never got confirmation.' Today a merchant juggles the PayPal dashboard, transaction search, refunds and disputes to work out what happened, and then guesses whether to refund." |
-| 0:15–0:35 | **Overview** | The SANDBOX pill; KPIs (payment attempts, $131 captured, refunds); then **Transactions**, open the $25 order's drawer | "Refund Detective runs on the PayPal Sandbox through PayPal's own MCP server, which our backend owns. These are real Sandbox transactions: captures, refunds, and even the declined attempts." |
-| 0:35–1:10 | **Investigate** | **Investigate with AI**, complaint "I was charged $25 but never got a confirmation email, please refund me." Show the live stages (Collecting PayPal evidence → Investigator reviewing evidence → writing the report). Then the FactSheet, findings with EV chips (click one to show it highlighted in the timeline), the **allegation only** tag, root cause at ~80% (**estimate**), and missing information | "The backend, not the AI, collects the evidence and numbers it. Code computes the FactSheet: captured, refunded, remaining. The AI must cite evidence for every claim; uncited claims are removed by code. The complaint is an allegation, not proof." |
-| 1:10–1:45 | **Decision Council** | Set the amount to 25.00 → **Convene council**. Show "Advocate thinking… Challenger thinking…", the For/Against columns, a struck-through uncited argument if one appears, the Challenger's safer alternative, and the verdict card with guardrail result "all checks passed" | "Every money-moving decision goes to an adversarial council. One agent argues for and one against, in parallel and blind to each other. An impartial Judge rules, then deterministic guardrails check the verdict against live PayPal data. They can only make the outcome stricter." |
-| 1:45–2:15 | **Resolve** | **Review & approve refund · USD 25.00** → the modal re-checks live (original 25.00, refunded 0.00, remaining 25.00) → tick **I authorize this Sandbox refund** → **Refund USD 25.00** → "PayPal Sandbox reports COMPLETED", verified with `get_refund` → **Refunds** page → the Overview's recent activity audit feed | "Nothing executes until I confirm, on a button that carries the exact amount. The server re-validates live, takes a lock, calls create_refund exactly once, and only trusts PayPal's own get_refund status. Every step is audited." |
-| 2:15–2:40 | **Safety moment** | Same investigation → **Convene council** again for 25.00. The Challenger flags the already-refunded capture; the outcome is REJECT; the Review button is disabled. Optionally show the earlier REJECT on the $64 order (`inv_4965eef2dd21`) | "Try to refund it again. The Challenger cites the completed refund, and the guardrails see 0.00 remaining from live PayPal data. Blocked. Replaying the old approval is refused too: one refund per approval, ever." |
-| 2:40–2:55 | **Close** | Investigation workspace, wide shot | "Refund Detective turns payment confusion into evidence-based action. AI recommends, code validates, you approve." |
+| 1 | 0:00–0:15 | **Overview** page, still | "Small online merchants get messages like 'I was charged but never got confirmation.' Answering means digging through orders, captures, refunds and disputes, then guessing whether to refund. Refund double, or during a dispute, and you lose money twice. Refund Detective fixes that." |
+| 2 | 0:15–0:30 | Point at the **SANDBOX** pill, the KPI tiles (13 attempts, $395.89 captured, 2 open disputes), then click **Transactions** | "It runs on PayPal Sandbox through PayPal's MCP server, which our backend owns. Everything here is real Sandbox data: captures, refunds, declined attempts and two buyer-opened disputes." |
+| 3 | 0:30–1:05 | Click the **$25.00** row → drawer → **Investigate with AI** → paste the complaint* → **Start investigation**. Let the stages show (*Collecting PayPal evidence → Investigator reviewing → writing the report*). If you cut the wait, put **"sped up"** on screen. Then scroll: FactSheet, findings with EV chips (click one; it highlights in the timeline), the **allegation only** tag, root cause with **estimate**, missing information | "The backend, not the AI, gathers the PayPal evidence and numbers it. Code computes the FactSheet: captured, refunded, what's left. The AI must cite evidence for every claim, and code deletes anything uncited. The customer's complaint counts as an allegation, not proof." |
+| 4 | 1:05–1:40 | Scroll to **Decision Council**, amount **25.00** → **Convene council**. Show *Advocate thinking… Challenger thinking…*, then the For and Against columns and the Challenger's safer alternative. The verdict card shows APPROVE and **Guardrail result: all checks passed** | "Every money-moving decision goes to an adversarial council. One agent argues for, one against, in parallel and blind to each other. An impartial judge rules. Then deterministic guardrails check the verdict against live PayPal data, and they can only make it stricter." |
+| 5 | 1:40–2:10 | **Review & approve refund · USD 25.00** → the modal re-checks live (original 25.00, refunded 0.00, remaining 25.00) → tick **I authorize this Sandbox refund** → **Refund USD 25.00** → *PayPal Sandbox reports COMPLETED* → **Done** → click the refund under Resolution → **refund detail page** (live PayPal status, verdict, audit trail) | "Nothing moves until I confirm, on a button that carries the exact amount. The server re-validates live, locks the payment, calls PayPal's create_refund exactly once, and only trusts PayPal's own get_refund status. Every step is in the audit trail." |
+| 6 | 2:10–2:35 | Back to the investigation → **Convene council** again with 25.00 → it ends **REJECT** and the Review button is disabled. Optionally cut to the charged-twice case (`inv_f51606e58e87`), where the verdict card shows guardrails failing on an open dispute and a refund already in progress | "Try to refund it again. The Challenger cites the completed refund, and the guardrails see zero left from live PayPal data. Blocked. With an open dispute, refunding is blocked too, because that's how merchants lose money twice." |
+| 7 | 2:35–2:50 | Investigation workspace, wide shot | "Refund Detective turns payment confusion into evidence-based action. The AI recommends, code validates, and the merchant approves." |
 
-## Fallbacks if something goes wrong while recording
-- **AI rate limit** (the banner says "Waiting … for the AI rate limit"): keep recording if it recovers within a few seconds. Otherwise stop and re-record that scene later. Never edit in a fake result.
-- **The council escalates** because a model timed out: that's a real safety behaviour and fine to show ("the Judge never rules on one side"). Re-convene for the happy path.
-- **Already used up the $25 order:** the $42 order `2N3925934C459540S` (capture `0NM23031PE726202M`) already has an APPROVE council for USD 42.00 (`inv_7833cb461c58`).
+\*Complaint to paste in shot 3: `I was charged $25 for the trench coat but never got an order confirmation email. Please refund me.`
+
+## 2. Editing (15 minutes)
+- macOS: open the recording in QuickTime and use **Edit → Trim**. For jump cuts use iMovie, which is free.
+- You may **cut waiting time**, but don't change results. Add a small "sped up" or "cut: waiting for AI" caption where you cut.
+- **No music**, or only royalty-free music you have rights to. Silence is fine.
+- The total must be **under 3:00**; aim for 2:45.
+- Export at 1080p.
+
+## 3. Upload
+1. YouTube → Create → Upload video. Title: `Refund Detective — AI payment investigation with an adversarial Decision Council (PayPal AI Hackathon)`.
+2. Visibility: **Public**. Unlisted may not count as "publicly visible".
+3. Description: the one-liner, plus links to the repo and the live demo.
+4. Paste the YouTube link into the Devpost form.
+
+## If something goes wrong while recording
+- **"Waiting … for the AI rate limit"** for a long time: stop and re-record that shot. Never edit in a result that didn't happen.
+- **The council escalates** because a model timed out: this is real safety behaviour ("the Judge never rules on one side"). Re-convene for the happy path.
+- **The $25 refund is already done** after a failed take: use the $10.00 Gift Card order `36T98649RR6226333` (capture `3XM803269K147420R`) and say "$10" in the voice-over.
