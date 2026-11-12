@@ -7,14 +7,18 @@ import { TransactionsPage } from './pages/Transactions';
 import { SettingsPage } from './pages/Settings';
 import { InvestigationsPage, NewInvestigationPage } from './pages/Investigations';
 import { InvestigationWorkspace } from './pages/InvestigationWorkspace';
+import { DisputesPage } from './pages/Disputes';
+import { EventMonitorPage } from './pages/EventMonitor';
+import { InsightsPage } from './pages/Insights';
+import { RefundsPage } from './pages/Refunds';
 
 function NotBuiltYet({ title }: { title: string }) {
   return (
     <>
       <PageHeader title={title} />
       <Card>
-        <EmptyState icon={Construction} title="Not built yet">
-          This section is part of an upcoming build phase. Nothing here is simulated.
+        <EmptyState icon={Construction} title="Page not found">
+          This page does not exist.
         </EmptyState>
       </Card>
     </>
@@ -30,10 +34,10 @@ export function App() {
         <Route path="/investigations" element={<InvestigationsPage />} />
         <Route path="/investigations/new" element={<NewInvestigationPage />} />
         <Route path="/investigations/:id" element={<InvestigationWorkspace />} />
-        <Route path="/refunds" element={<NotBuiltYet title="Refunds" />} />
-        <Route path="/disputes" element={<NotBuiltYet title="Disputes" />} />
-        <Route path="/events" element={<NotBuiltYet title="Event Monitor" />} />
-        <Route path="/insights" element={<NotBuiltYet title="Insights" />} />
+        <Route path="/refunds" element={<RefundsPage />} />
+        <Route path="/disputes" element={<DisputesPage />} />
+        <Route path="/events" element={<EventMonitorPage />} />
+        <Route path="/insights" element={<InsightsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<NotBuiltYet title="Not found" />} />
       </Routes>

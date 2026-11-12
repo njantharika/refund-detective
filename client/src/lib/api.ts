@@ -49,12 +49,13 @@ export interface Transaction {
   updatedAt: string | null;
   payerCountry: string | null;
   note: string | null;
-  source: 'transaction_search' | 'demo_order';
+  source: 'transaction_search' | 'demo_order' | 'demo_sample';
 }
 
 export interface Sources {
   transactionSearch: { available: boolean; error: { code: string; httpStatus: number | null; message: string } | null; count: number; path: string | null };
   demoOrders: { tracked: number; fetched: number; errors: { orderId: string; message: string }[] };
+  demoMode?: { active: true; message: string };
 }
 
 export interface TransactionList {
@@ -125,7 +126,7 @@ export interface TransactionDetails {
 
 export interface DashboardSummary {
   range: { from: string; to: string };
-  dataMode: 'live' | 'empty';
+  dataMode: 'live' | 'empty' | 'demo';
   kpis: {
     total: number;
     nonPaymentActivity: number;
@@ -147,6 +148,7 @@ export interface DashboardSummary {
 
 export interface IntegrationStatus {
   appVersion: string;
+  demoMode: { active: true; message: string } | null;
   paypal: {
     environment: string;
     apiBase: string;
@@ -325,6 +327,8 @@ export interface Deliberation {
   factSheet: FactSheet | null;
   finalOutcome: Verdict | null;
   executable: { amount: string; currency: string; captureId: string } | null;
+  executableDispute: { disputeId: string } | null;
+  disputeId: string | null;
   createdAt: string;
   completedAt: string | null;
 }
@@ -353,4 +357,64 @@ export interface Eligibility {
   eligible: boolean;
   reasons: string[];
   checkedAt: string;
+}
+
+/* ------------------------- disputes, events, insights ------------------------- */
+
+export interface DisputeDetail {
+  dispute: Dispute;
+  raw: Record<string, unknown>;
+  path: string;
+  open: boolean;
+  investigations: { id: string; status: string; stage: string; captureId: string | null }[];
+  actions: { id: string; status: string; paypal_response_summary: string | null; created_at: string }[];
+}
+
+export interface DisputeSummaryResult {
+  summary: string;
+  buyerClaim: string;
+  keyFacts: { fact: string; fields: string[]; validFields: string[]; invalidFields: string[] }[];
+  deadlines: string[];
+  options: string[];
+  removedUncited: number;
+  model: string;
+}
+
+export interface WebhookEvent {
+  id: string;
+  paypalEventId: string;
+  eventType: string;
+  resourceId: string | null;
+  eventTime: string;
+  verified: boolean;
+  processingStatus: string;
+  relatedIds: string[];
+  summary: string | null;
+  receivedAt: string;
+}
+
+export interface InsightSummary {
+  headline: string;
+  observations: { text: string; metrics: string[] }[];
+  caveats: string[];
+  removedUncited: number;
+  model: string;
+  createdAt: string;
+}
+
+export interface Insights {
+  range: { from: string; to: string };
+  metrics: {
+    payments: { total: number; successful: number; failed: number; pending: number };
+    capturedVolume: Record<string, number>;
+    refunds: { count: number; amount: Record<string, number>; ratePercentOfCaptured: Record<string, number | null> };
+    statusDistribution: Record<string, number>;
+    disputes: { total: number; open: number } | null;
+    council: { verdicts: Record<string, number>; guardrailOverrides: number };
+    investigations: { reportsReady: number; avgRootCauseConfidence: number | null; uncitedClaimsRemoved: number };
+  };
+  series: { activity: { date: string; count: number; volume: number }[]; refundTrend: { date: string; count: number }[] };
+  sources: Sources & { disputesError: string | null };
+  latestSummary: InsightSummary | null;
+  fetchedAt: string;
 }

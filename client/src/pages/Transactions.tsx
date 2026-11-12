@@ -133,7 +133,7 @@ export function TransactionsPage() {
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-slate-100">{money(t.amount)}</td>
                       <td className="px-4 py-3">
-                        <Pill tone={t.source === 'transaction_search' ? 'info' : 'violet'}>{t.source === 'transaction_search' ? 'Transaction Search' : 'Live order'}</Pill>
+                        <Pill tone={t.source === 'transaction_search' ? 'info' : t.source === 'demo_sample' ? 'warning' : 'violet'}>{t.source === 'transaction_search' ? 'Transaction Search' : t.source === 'demo_sample' ? 'Sample (Demo mode)' : 'Live order'}</Pill>
                       </td>
                     </tr>
                   );
@@ -195,7 +195,7 @@ export function TransactionDrawer({ id, onClose }: { id: string | null; onClose:
             <StatusBadge status={order?.status ?? d.transaction?.status} />
             <span className="text-lg font-semibold text-white tabular-nums">{money(order?.amount ?? d.transaction?.amount)}</span>
           </div>
-          <Button onClick={() => nav(`/investigations/new?target=${encodeURIComponent(id!)}`)} className="w-full py-2">
+          <Button onClick={() => nav(`/investigations/new?target=${encodeURIComponent(id!)}`)} className="w-full py-2" disabled={id?.startsWith('DEMO-')} title={id?.startsWith('DEMO-') ? 'Disabled in Demo mode' : undefined}>
             <FileSearch className="h-4 w-4" /> Investigate with AI
           </Button>
 

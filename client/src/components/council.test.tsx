@@ -19,7 +19,7 @@ export const deliberation = (over: Partial<Deliberation> = {}): Deliberation => 
   rebuttals: null,
   judge: { verdict: 'APPROVE', decision: { type: 'refund', amount: '42.00', currency: 'USD' }, rationale: 'Capture completed, nothing refunded.', decisiveArguments: [{ from: 'advocate', claim: 'Capture completed for 42.00', evidenceIds: ['EV-002'] }], rejectedArguments: [], strongestDissent: 'Complaint unverified', confidence: 0.9, conditions: ['Only if no dispute opens before execution'] },
   guardrails: { judgeVerdict: 'APPROVE', finalOutcome: 'APPROVE', overridden: false, overrideReasons: [], checks: [{ rule: 'remaining_refundable', passed: true, outcome: null, detail: 'Remaining refundable 42.00 USD' }], executable: { amount: '42.00', currency: 'USD', captureId: '0NM23031PE726202M' } },
-  factSheet: null, finalOutcome: 'APPROVE', executable: { amount: '42.00', currency: 'USD', captureId: '0NM23031PE726202M' }, createdAt: '2026-11-12T00:00:00Z', completedAt: '2026-11-12T00:00:30Z',
+  factSheet: null, finalOutcome: 'APPROVE', executable: { amount: '42.00', currency: 'USD', captureId: '0NM23031PE726202M' }, executableDispute: null, disputeId: null, createdAt: '2026-11-12T00:00:00Z', completedAt: '2026-11-12T00:00:30Z',
   ...over,
 });
 

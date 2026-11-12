@@ -1,6 +1,8 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api, type IntegrationStatus } from '../lib/api';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Activity, Bell, FileSearch, Gauge, LineChart, ListOrdered, RotateCcw, Scale, Search, Settings, ShieldCheck, Store } from 'lucide-react';
+import { Activity, Bell, FileSearch, FlaskConical, Gauge, LineChart, ListOrdered, RotateCcw, Scale, Search, Settings, ShieldCheck, Store } from 'lucide-react';
 import { cx } from './ui';
 
 export const NAV = [
@@ -22,7 +24,7 @@ export function Logo() {
         <circle cx="14" cy="14" r="7" fill="none" stroke="#7C5CFF" strokeWidth="3" />
         <path d="M19 19l6 6" stroke="#14B8A6" strokeWidth="3" strokeLinecap="round" />
       </svg>
-      <div className="leading-tight">
+      <div className="hidden leading-tight min-[420px]:block">
         <div className="text-sm font-semibold tracking-tight text-white">Refund Detective</div>
         <div className="hidden text-[10px] text-slate-500 sm:block">Every payment has a story.</div>
       </div>
@@ -88,8 +90,8 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-white/[0.05] bg-ink-950/85 px-4 py-3 backdrop-blur sm:px-6">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
+        <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-white/[0.05] bg-ink-950/85 px-4 py-3 backdrop-blur sm:gap-4 sm:px-6">
           <div className="lg:hidden">
             <Logo />
           </div>
@@ -97,10 +99,10 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="flex flex-1 justify-center">
             <GlobalSearch />
           </div>
-          <button type="button" aria-label="Notifications" className="rounded-lg p-2 text-slate-400 hover:bg-white/[0.05] hover:text-white">
+          <button type="button" aria-label="Notifications" className="hidden rounded-lg p-2 text-slate-400 hover:bg-white/[0.05] hover:text-white sm:block">
             <Bell className="h-4 w-4" />
           </button>
-          <div className="flex items-center gap-2 rounded-lg border border-white/[0.06] px-2.5 py-1.5" title="Sandbox merchant account">
+          <div className="flex shrink-0 items-center gap-2 rounded-lg border border-white/[0.06] px-2.5 py-1.5" title="Sandbox merchant account">
             <Store aria-hidden className="h-4 w-4 text-teal" />
             <span className="hidden text-xs text-slate-300 sm:inline">Sandbox merchant</span>
           </div>
@@ -112,6 +114,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
+        <DemoBanner />
         <main className="bg-grid flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>
@@ -126,6 +129,21 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
         {subtitle && <p className="mt-1 text-sm text-slate-400">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+/** Shown on every page when no PayPal credentials are configured. Sample data is never presented as PayPal data. */
+export function DemoBanner() {
+  const status = useQuery({ queryKey: ['integration-status'], queryFn: () => api<IntegrationStatus>('/api/settings/integration-status'), staleTime: 30_000 });
+  const demo = status.data?.demoMode;
+  if (!demo) return null;
+  return (
+    <div role="status" className="flex items-center gap-2 border-b border-amber-400/30 bg-amber-400/[0.08] px-4 py-2 text-xs text-amber-100 sm:px-6">
+      <FlaskConical aria-hidden className="h-4 w-4 shrink-0 text-amber-300" />
+      <span>
+        <b>DEMO MODE</b>: sample data, not PayPal data. Investigations and refunds are disabled. {demo.message.replace(/^Demo mode: /, '')}
+      </span>
     </div>
   );
 }

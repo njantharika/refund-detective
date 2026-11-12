@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { CheckCircle2, Clock, FileSearch, ListOrdered, RefreshCw, RotateCcw, Scale, Sparkles, XCircle } from 'lucide-react';
-import { api, qs, type DashboardSummary, type IntegrationStatus } from '../lib/api';
+import { api, qs, type DashboardSummary, type Insights, type IntegrationStatus } from '../lib/api';
 import { dateTime, moneyMap, relative } from '../lib/format';
 import { PageHeader } from '../components/Shell';
 import { SourceBanner } from '../components/SourceBanner';
@@ -42,6 +42,8 @@ export function OverviewPage() {
   const params = useMemo(() => rangeParams(days), [days]);
   const summary = useQuery({ queryKey: ['dashboard', days], queryFn: () => api<DashboardSummary>(`/api/dashboard/summary${qs(params)}`) });
   const status = useQuery({ queryKey: ['integration-status'], queryFn: () => api<IntegrationStatus>('/api/settings/integration-status') });
+  const insight = useQuery({ queryKey: ['insights', days], queryFn: () => api<Insights>(`/api/insights${qs(params)}`), enabled: status.data?.ai.configured === true });
+  const latest = insight.data?.latestSummary;
   const d = summary.data;
   const k = d?.kpis;
   const loading = summary.isLoading;
@@ -74,14 +76,14 @@ export function OverviewPage() {
       <SourceBanner sources={d?.sources} />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <KpiTile label="Total payments" value={k?.total ?? 0} icon={ListOrdered} loading={loading} hint={d ? moneyMap(k?.capturedVolume) + ' captured' : undefined} />
+        <KpiTile label="Payment attempts" value={k?.total ?? 0} icon={ListOrdered} loading={loading} hint={d ? moneyMap(k?.capturedVolume) + ' captured' : undefined} />
         <KpiTile label="Successful" value={k?.successful ?? 0} icon={CheckCircle2} loading={loading} />
-        <KpiTile label="Failed" value={k?.failed ?? 0} icon={XCircle} loading={loading} />
+        <KpiTile label="Failed attempts" value={k?.failed ?? 0} icon={XCircle} loading={loading} hint="Declined or failed captures" />
         <KpiTile label="Pending" value={k?.pending ?? 0} icon={Clock} loading={loading} />
         <KpiTile label="Refunds" value={k?.refunds.count ?? 0} icon={RotateCcw} loading={loading} hint={d ? moneyMap(k?.refunds.amount) : undefined} />
         <KpiTile label="Open investigations" value={k?.openInvestigations ?? 0} icon={FileSearch} loading={loading} />
         <KpiTile label="Open disputes" value={k?.openDisputes ?? '—'} icon={Scale} loading={loading} hint={d?.sources.disputesError ? 'Dispute lookup failed' : undefined} />
-        <KpiTile label="Data source" value={<span className="text-base">{d?.dataMode === 'live' ? 'PayPal Sandbox' : 'No data yet'}</span>} loading={loading} hint={d ? `Fetched ${relative(d.fetchedAt)}${k?.nonPaymentActivity ? ` · ${k.nonPaymentActivity} non-payment entr${k.nonPaymentActivity === 1 ? 'y' : 'ies'} excluded` : ''}` : undefined} />
+        <KpiTile label="Data source" value={<span className="text-base">{d?.dataMode === 'live' ? 'PayPal Sandbox' : d?.dataMode === 'demo' ? 'Sample data (Demo)' : 'No data yet'}</span>} loading={loading} hint={d ? `Fetched ${relative(d.fetchedAt)}${k?.nonPaymentActivity ? ` · ${k.nonPaymentActivity} non-payment entr${k.nonPaymentActivity === 1 ? 'y' : 'ies'} excluded` : ''}` : undefined} />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
@@ -118,9 +120,31 @@ export function OverviewPage() {
             <EmptyState icon={Sparkles} title="AI not configured">
               Set <code className="mono">ANTHROPIC_API_KEY</code> in <code className="mono">.env</code> to enable investigator, council and insight summaries.
             </EmptyState>
+          ) : latest ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-100">{latest.headline}</p>
+              <ul className="space-y-1.5 text-sm text-slate-300">
+                {latest.observations.slice(0, 3).map((o, i) => (
+                  <li key={i}>
+                    {o.text}{' '}
+                    {o.metrics.map((k) => (
+                      <span key={k} className="mono ml-1 rounded bg-violet/10 px-1 py-0.5 text-[10px] text-violet-200">
+                        {k}
+                      </span>
+                    ))}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/insights" className="text-xs text-blue-300 hover:underline">
+                Open Insights →
+              </Link>
+            </div>
           ) : (
-            <EmptyState icon={Sparkles} title="Insight summaries arrive with the Insights page">
-              Metric-cited summaries are generated on the Insights page.
+            <EmptyState icon={Sparkles} title="No insight generated yet">
+              <Link className="text-blue-300 hover:underline" to="/insights">
+                Generate a metric-cited summary
+              </Link>{' '}
+              on the Insights page.
             </EmptyState>
           )}
         </Card>

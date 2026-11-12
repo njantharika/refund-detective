@@ -33,7 +33,7 @@ export function useCouncil(investigationId: string) {
   return { list, latest: list.data?.items[0] };
 }
 
-export function CouncilPanel({ inv, onSelect, onReview }: { inv: Investigation; onSelect: (id: string) => void; onReview: (d: Deliberation) => void }) {
+export function CouncilPanel({ inv, onSelect, onReview, onReviewDispute }: { inv: Investigation; onSelect: (id: string) => void; onReview: (d: Deliberation) => void; onReviewDispute?: (d: Deliberation) => void }) {
   const qc = useQueryClient();
   const { list, latest } = useCouncil(inv.id);
   const proposed = inv.report?.proposedDecision;
@@ -41,8 +41,11 @@ export function CouncilPanel({ inv, onSelect, onReview }: { inv: Investigation; 
   const [amount, setAmount] = useState(defaultAmount);
   useEffect(() => setAmount(defaultAmount), [defaultAmount]);
   const start = useMutation({
-    mutationFn: (decisionType: 'refund' | 'next_action') =>
-      api<{ deliberationId: string }>(`/api/investigations/${inv.id}/council`, { method: 'POST', body: JSON.stringify({ decisionType, amount: decisionType === 'refund' ? amount || null : null }) }),
+    mutationFn: (v: 'refund' | 'next_action' | { disputeId: string }) =>
+      api<{ deliberationId: string }>(`/api/investigations/${inv.id}/council`, {
+        method: 'POST',
+        body: JSON.stringify(typeof v === 'object' ? { decisionType: 'dispute_accept', disputeId: v.disputeId } : { decisionType: v, amount: v === 'refund' ? amount || null : null }),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['council', inv.id] }),
   });
   const ready = inv.stage === 'ready';
@@ -81,6 +84,11 @@ export function CouncilPanel({ inv, onSelect, onReview }: { inv: Investigation; 
         <Button variant="outline" onClick={() => start.mutate('next_action')} disabled={!ready || running || start.isPending}>
           Debate next action
         </Button>
+        {inv.factSheet?.openDisputes.map((id) => (
+          <Button key={id} variant="outline" onClick={() => start.mutate({ disputeId: id })} disabled={!ready || running || start.isPending}>
+            <Scale className="h-4 w-4" /> Debate accepting claim {id}
+          </Button>
+        ))}
         {inv.factSheet?.remainingRefundable && <span className="text-xs text-slate-500">Remaining refundable: {inv.factSheet.remainingRefundable} {currency}</span>}
       </div>
       {start.error && (
@@ -118,7 +126,7 @@ export function CouncilPanel({ inv, onSelect, onReview }: { inv: Investigation; 
             <SideColumn side="challenger" result={latest.challenger} running={running && latest.stage === 'arguing'} valid={valid} onSelect={onSelect} />
           </div>
 
-          {latest.stage === 'complete' && <VerdictCard d={latest} valid={valid} onSelect={onSelect} onReview={onReview} />}
+          {latest.stage === 'complete' && <VerdictCard d={latest} valid={valid} onSelect={onSelect} onReview={onReview} onReviewDispute={onReviewDispute} />}
         </div>
       )}
     </Card>
@@ -218,7 +226,7 @@ function ArgumentItem({ a, valid, onSelect }: { a: CouncilArgument; valid: Set<s
   );
 }
 
-function VerdictCard({ d, valid, onSelect, onReview }: { d: Deliberation; valid: Set<string>; onSelect: (id: string) => void; onReview: (d: Deliberation) => void }) {
+function VerdictCard({ d, valid, onSelect, onReview, onReviewDispute }: { d: Deliberation; valid: Set<string>; onSelect: (id: string) => void; onReview: (d: Deliberation) => void; onReviewDispute?: (d: Deliberation) => void }) {
   const j = d.judge && !('error' in d.judge && d.judge.error) ? (d.judge as JudgeVerdict) : null;
   const g = d.guardrails;
   const canReview = d.decisionType === 'refund' && !!d.executable && (d.finalOutcome === 'APPROVE' || d.finalOutcome === 'APPROVE_MODIFIED');
@@ -317,6 +325,14 @@ function VerdictCard({ d, valid, onSelect, onReview }: { d: Deliberation; valid:
         </div>
       )}
 
+      {d.decisionType === 'dispute_accept' && (
+        <div className="mt-4">
+          <Button variant="danger" className="w-full py-2" disabled={!d.executableDispute} onClick={() => onReviewDispute?.(d)}>
+            <Scale className="h-4 w-4" /> Review &amp; accept claim{d.executableDispute ? ` ${d.executableDispute.disputeId}` : ''}
+          </Button>
+          <p className="mt-1.5 text-center text-[11px] text-slate-500">{d.executableDispute ? 'Opens a confirmation step. Nothing executes until you confirm.' : `Disabled: final outcome is ${d.finalOutcome?.replace(/_/g, ' ') ?? 'pending'}.`}</p>
+        </div>
+      )}
       {d.decisionType === 'refund' && (
         <div className="mt-4">
           <Button className="w-full py-2" disabled={!canReview} onClick={() => onReview(d)}>

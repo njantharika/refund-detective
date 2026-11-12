@@ -10,6 +10,7 @@ import { Button, Card, cx, EmptyState, ErrorState, EvidenceChip, Field, Notice, 
 import { STAGE_LABEL } from './Investigations';
 import { CouncilPanel, useCouncil, VerdictBadge } from '../components/CouncilPanel';
 import { RefundModal } from '../components/RefundModal';
+import { DisputeAcceptModal } from '../components/DisputeAcceptModal';
 
 const SOURCE_META: Record<Evidence['source'], { label: string; icon: typeof ShieldCheck; tone: 'success' | 'info' | 'warning' | 'neutral' | 'violet' }> = {
   paypal_mcp: { label: 'PayPal · MCP', icon: ShieldCheck, tone: 'success' },
@@ -24,6 +25,7 @@ export function InvestigationWorkspace() {
   const qc = useQueryClient();
   const [highlight, setHighlight] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<Deliberation | null>(null);
+  const [reviewingDispute, setReviewingDispute] = useState<Deliberation | null>(null);
   const inv = useQuery({
     queryKey: ['investigation', id],
     queryFn: () => api<Investigation>(`/api/investigations/${id}`),
@@ -107,9 +109,10 @@ export function InvestigationWorkspace() {
       </div>
 
       <div className="mt-6">
-        <CouncilPanel inv={d} onSelect={select} onReview={setReviewing} />
+        <CouncilPanel inv={d} onSelect={select} onReview={setReviewing} onReviewDispute={setReviewingDispute} />
       </div>
       <RefundModal inv={d} deliberation={reviewing} onClose={() => setReviewing(null)} />
+      <DisputeAcceptModal inv={d} deliberation={reviewingDispute} onClose={() => setReviewingDispute(null)} />
     </>
   );
 }
@@ -152,7 +155,7 @@ function FactSheetCard({ inv }: { inv: Investigation }) {
   const fs = inv.factSheet;
   if (!fs) return <Card title="FactSheet"><Skeleton className="h-32" /></Card>;
   return (
-    <Card title="FactSheet" subtitle="Computed by code from PayPal data. The AI cannot override it.">
+    <Card title="FactSheet" subtitle={`Computed by code from PayPal data at ${dateTime(fs.computedAt)}. The AI cannot override it; councils and refunds always recompute it live.`}>
       <dl className="grid grid-cols-2 gap-3">
         <Field label="Capture status">{fs.captureStatus ?? NA}</Field>
         <Field label="Captured"><Money v={fs.capturedAmount} c={fs.currency} /></Field>
@@ -392,9 +395,10 @@ function ResolutionCard({ inv, onReview }: { inv: Investigation; onReview: (d: D
         <>
           <div className="flex items-center gap-2">
             {fs.refundEligible ? <CheckCircle2 aria-hidden className="h-4 w-4 text-teal" /> : <AlertTriangle aria-hidden className="h-4 w-4 text-amber-300" />}
-            <span className="text-sm font-medium text-slate-100">{fs.refundEligible ? `Eligible · up to ${fs.remainingRefundable} ${fs.currency}` : 'Not eligible (at investigation time)'}</span>
+            <span className="text-sm font-medium text-slate-100">{fs.refundEligible ? `Eligible at investigation time · up to ${fs.remainingRefundable} ${fs.currency}` : 'Not eligible at investigation time'}</span>
           </div>
           {fs.refundBlockers.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-300">{fs.refundBlockers.map((b) => <li key={b}>{b}</li>)}</ul>}
+          {refunds.data && refunds.data.items.some((r) => r.status === 'completed' || r.status === 'pending') && <p className="mt-2 text-xs text-amber-200/90">Refunds were executed after this snapshot. The council and the approval step recompute eligibility live.</p>}
         </>
       )}
       {p && (

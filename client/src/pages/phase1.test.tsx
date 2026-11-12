@@ -41,7 +41,7 @@ describe('Overview (dashboard render)', () => {
   it('renders KPIs from the API', async () => {
     mockFetch({ '/api/dashboard/summary': { body: summary }, '/api/settings/integration-status': { body: status } });
     renderWithProviders(<OverviewPage />);
-    expect(await screen.findByText('Total payments')).toBeInTheDocument();
+    expect(await screen.findByText('Payment attempts')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('$131.00 captured')).toBeInTheDocument());
     expect(screen.getByText('Open investigations').parentElement?.parentElement).toHaveTextContent('2');
     expect(screen.getByText('AI not configured')).toBeInTheDocument();
