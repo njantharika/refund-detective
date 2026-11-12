@@ -8,6 +8,7 @@ export function refundsRouter({ refunds }: AppDeps) {
   const r = Router();
   r.get('/', (_req, res) => res.json({ items: refunds.list() }));
   r.get('/:id', (req, res) => res.json(refunds.result(RefundId.parse(req.params).id)));
+  r.get('/:id/details', async (req, res) => res.json(await refunds.details(RefundId.parse(req.params).id)));
   return r;
 }
 

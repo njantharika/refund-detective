@@ -11,6 +11,7 @@ import { DisputesPage } from './pages/Disputes';
 import { EventMonitorPage } from './pages/EventMonitor';
 import { InsightsPage } from './pages/Insights';
 import { RefundsPage } from './pages/Refunds';
+import { RefundDetailPage } from './pages/RefundDetail';
 
 function NotBuiltYet({ title }: { title: string }) {
   return (
@@ -35,6 +36,7 @@ export function App() {
         <Route path="/investigations/new" element={<NewInvestigationPage />} />
         <Route path="/investigations/:id" element={<InvestigationWorkspace />} />
         <Route path="/refunds" element={<RefundsPage />} />
+        <Route path="/refunds/:id" element={<RefundDetailPage />} />
         <Route path="/disputes" element={<DisputesPage />} />
         <Route path="/events" element={<EventMonitorPage />} />
         <Route path="/insights" element={<InsightsPage />} />

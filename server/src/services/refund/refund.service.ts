@@ -258,6 +258,51 @@ export class RefundService {
     };
   }
 
+  /** Detail view: our record, PayPal's live status (get_refund), the authorising verdict and the audit trail. */
+  async details(id: string) {
+    const r = this.result(id);
+    let paypal: { refund: NormalizedRefund; path: string; checkedAt: string } | null = null;
+    let paypalError: string | null = null;
+    if (r.paypalRefundId) {
+      try {
+        const live = await this.deps.paypal.refunds.getRefund(r.paypalRefundId);
+        paypal = { refund: live.refund, path: live.path, checkedAt: new Date().toISOString() };
+      } catch (e) {
+        paypalError = e instanceof PayPalError ? `${e.code}: ${e.message}` : String(e);
+      }
+    }
+    let deliberation = null;
+    try {
+      const d = this.deps.council.get(r.investigationId, r.deliberationId);
+      const j = d.judge && 'verdict' in d.judge ? (d.judge as { verdict: string; confidence: number; rationale: string; strongestDissent: string }) : null;
+      deliberation = {
+        id: d.id,
+        proposal: d.proposal.summary,
+        finalOutcome: d.finalOutcome,
+        judgeVerdict: j?.verdict ?? null,
+        judgeConfidence: j?.confidence ?? null,
+        rationale: j?.rationale ?? null,
+        strongestDissent: j?.strongestDissent ?? null,
+        guardrailsOverridden: d.guardrails?.overridden ?? null,
+        checks: d.guardrails?.checks ?? [],
+        advocateModel: d.advocate && d.advocate.ok ? d.advocate.model : null,
+        challengerModel: d.challenger && d.challenger.ok ? d.challenger.model : null,
+        completedAt: d.completedAt,
+      };
+    } catch {
+      /* deliberation missing: shown as unavailable */
+    }
+    const inv = this.deps.db.prepare('SELECT id, order_id AS orderId, capture_id AS captureId, summary, complaint FROM investigations WHERE id = ?').get(r.investigationId) ?? null;
+    const audit = this.deps.db
+      .prepare(
+        `SELECT actor, action, resource_type AS resourceType, request_summary AS request, result_summary AS result, created_at AS createdAt FROM audit_log
+         WHERE (resource_type = 'refund' AND resource_id = ?) OR (resource_type = 'deliberation' AND resource_id = ?) OR (resource_type = 'investigation' AND resource_id = ?)
+         ORDER BY id`,
+      )
+      .all(r.id, r.deliberationId, r.investigationId);
+    return { refund: r, paypal, paypalError, deliberation, investigation: inv, audit };
+  }
+
   list() {
     return (this.deps.db.prepare('SELECT id FROM refunds ORDER BY created_at DESC LIMIT 200').pluck().all() as string[]).map((id) => this.result(id));
   }

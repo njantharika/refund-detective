@@ -318,6 +318,18 @@ describe('refund approve flow', () => {
     expect((await request(h.app).get(`/api/investigations/${invId}`)).body.status).toBe('resolved');
   });
 
+  it('refund details: live PayPal status, the authorising verdict and the full audit trail', async () => {
+    const { h, invId } = await setup(approveRoutes);
+    const d = await runCouncil(h, invId);
+    const r = (await request(h.app).post(`/api/investigations/${invId}/refund/approve`).send(body(d.id))).body;
+    const det = (await request(h.app).get(`/api/refunds/${r.id}/details`)).body;
+    expect(det.paypal.refund).toMatchObject({ id: 'REFUND00000000001', status: 'COMPLETED', captureId: CAP });
+    expect(det.deliberation).toMatchObject({ id: d.id, finalOutcome: 'APPROVE', judgeVerdict: 'APPROVE' });
+    const actions = det.audit.map((a: { action: string }) => a.action);
+    expect(actions).toEqual(expect.arrayContaining(['investigation_requested', 'council_requested', 'verdict_issued', 'refund_approved', 'refund_executed']));
+    expect((await request(h.app).get('/api/refunds/rf_000000000000/details')).status).toBe(404);
+  });
+
   it('blocks a duplicate refund: a second council on the now-refunded capture is rejected by guardrails', async () => {
     const { h, invId } = await setup(approveRoutes);
     const d1 = await runCouncil(h, invId);

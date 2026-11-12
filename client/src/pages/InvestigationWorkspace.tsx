@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { AlertTriangle, Bot, CheckCircle2, CircleDashed, Copy, Database, Download, Gavel, Loader2, MessageSquare, RefreshCw, Search, Send, ShieldCheck, User } from 'lucide-react';
 import { api, type Deliberation, type Evidence, type Investigation, type RefundRecord } from '../lib/api';
 import { dateTime, NA } from '../lib/format';
@@ -447,12 +447,14 @@ function ResolutionCard({ inv, onReview }: { inv: Investigation; onReview: (d: D
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Refunds on this case</h4>
           <ul className="mt-2 space-y-2">
             {refunds.data.items.map((r) => (
-              <li key={r.id} className="rounded-lg border border-white/[0.05] bg-ink-900/60 px-3 py-2">
+              <li key={r.id}>
+                <Link to={`/refunds/${r.id}`} className="block rounded-lg border border-white/[0.05] bg-ink-900/60 px-3 py-2 hover:border-white/10">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm tabular-nums text-slate-100">{r.amount} {r.currency}</span>
                   <StatusBadge status={r.status === 'unknown' ? 'RECONCILING' : r.status.toUpperCase()} tone={r.status === 'completed' ? 'success' : r.status === 'failed' ? 'danger' : 'warning'} />
                 </div>
                 <div className="mono mt-0.5 truncate text-[11px] text-slate-500">{r.paypalRefundId ?? r.id}</div>
+                </Link>
               </li>
             ))}
           </ul>
