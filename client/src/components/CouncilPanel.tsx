@@ -60,7 +60,7 @@ export function CouncilPanel({ inv, onSelect, onReview, onReviewDispute }: { inv
           <Scale aria-hidden className="h-4 w-4 text-violet-300" /> Decision Council
         </span>
       }
-      subtitle="Adversarial review of every money-moving decision. One agent argues for, one argues against, an impartial Judge rules, and code guardrails have the final word."
+      subtitle="Advocate argues for, Challenger against (blind, in parallel). An impartial Judge rules; code guardrails can only make it stricter."
       actions={latest?.finalOutcome ? <VerdictBadge v={latest.finalOutcome} /> : undefined}
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -111,7 +111,7 @@ export function CouncilPanel({ inv, onSelect, onReview, onReviewDispute }: { inv
       )}
 
       {latest && (
-        <div className="mt-5 space-y-5">
+        <div className="mt-4 space-y-4">
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
             <span>Debating:</span>
             <span className="font-medium text-slate-200">{latest.proposal.summary}</span>
@@ -121,7 +121,7 @@ export function CouncilPanel({ inv, onSelect, onReview, onReviewDispute }: { inv
           {running && <CouncilProgress d={latest} />}
           {latest.stage === 'failed' && <ErrorState title="Council failed" error={latest.error ?? 'Unknown error'} />}
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2">
             <SideColumn side="advocate" result={latest.advocate} running={running && latest.stage === 'arguing'} valid={valid} onSelect={onSelect} />
             <SideColumn side="challenger" result={latest.challenger} running={running && latest.stage === 'arguing'} valid={valid} onSelect={onSelect} />
           </div>
@@ -158,7 +158,7 @@ function CouncilProgress({ d }: { d: Deliberation }) {
 function SideColumn({ side, result, running, valid, onSelect }: { side: 'advocate' | 'challenger'; result: SideResult | null; running: boolean; valid: Set<string>; onSelect: (id: string) => void }) {
   const isFor = side === 'advocate';
   return (
-    <section aria-label={isFor ? 'Advocate: for' : 'Challenger: against'} className={cx('rounded-[12px] border border-white/[0.06] border-l-4 bg-ink-900/60 p-4', isFor ? 'border-l-teal' : 'border-l-rose-500')}>
+    <section aria-label={isFor ? 'Advocate: for' : 'Challenger: against'} className={cx('rounded-[10px] border border-white/[0.06] border-l-[3px] bg-ink-900/60 p-3', isFor ? 'border-l-teal' : 'border-l-rose-500')}>
       <header className="flex items-center gap-2">
         {isFor ? <ThumbsUp aria-hidden className="h-4 w-4 text-teal" /> : <ThumbsDown aria-hidden className="h-4 w-4 text-rose-400" />}
         <h3 className="text-sm font-semibold text-white">{isFor ? 'For' : 'Against'}</h3>
@@ -179,14 +179,14 @@ function SideColumn({ side, result, running, valid, onSelect }: { side: 'advocat
       )}
       {result?.ok && (
         <>
-          <p className="mt-2 text-sm font-medium text-slate-100">{result.data.thesis}</p>
-          <ul className="mt-3 space-y-2.5">
+          <p className="mt-1.5 text-[13px] font-medium leading-snug text-slate-100">{result.data.thesis}</p>
+          <ul className="mt-2 divide-y divide-white/[0.04]">
             {result.data.arguments.map((a, i) => (
               <ArgumentItem key={i} a={a} valid={valid} onSelect={onSelect} />
             ))}
           </ul>
           {result.data.saferAlternative && (
-            <div className="mt-3 rounded-lg bg-amber-400/[0.06] p-2.5 text-xs text-amber-100 ring-1 ring-inset ring-amber-400/20">
+            <div className="mt-2 rounded-lg bg-amber-400/[0.06] px-2.5 py-2 text-xs text-amber-100 ring-1 ring-inset ring-amber-400/20">
               <span className="font-semibold">Safer alternative: </span>
               {result.data.saferAlternative.type.replace(/_/g, ' ')}
               {result.data.saferAlternative.amount ? ` (${result.data.saferAlternative.amount})` : ''}: {result.data.saferAlternative.rationale}
@@ -201,8 +201,9 @@ function SideColumn({ side, result, running, valid, onSelect }: { side: 'advocat
 function ArgumentItem({ a, valid, onSelect }: { a: CouncilArgument; valid: Set<string>; onSelect: (id: string) => void }) {
   const ignored = a.citationStatus !== 'valid';
   return (
-    <li className={cx('text-sm', ignored && 'opacity-70')}>
-      <div className="flex flex-wrap items-center gap-1.5">
+    <li className={cx('py-2 text-[13px] first:pt-1 last:pb-0', ignored && 'opacity-70')}>
+      <p className={cx('leading-snug text-slate-300', ignored && 'line-through decoration-rose-400/70')}>{a.claim}</p>
+      <div className="mt-1 flex flex-wrap items-center gap-1">
         <Pill tone={a.kind === 'evidence' ? 'success' : a.kind === 'risk' ? 'warning' : 'info'}>{a.kind.replace('_', ' ')}</Pill>
         <Pill tone="neutral">{a.weight}</Pill>
         {ignored && (
@@ -210,9 +211,6 @@ function ArgumentItem({ a, valid, onSelect }: { a: CouncilArgument; valid: Set<s
             uncited · ignored
           </Pill>
         )}
-      </div>
-      <p className={cx('mt-1 text-slate-200', ignored && 'line-through decoration-rose-400/70')}>{a.claim}</p>
-      <div className="mt-1 flex flex-wrap gap-1">
         {a.evidenceIds.map((id) => (
           <EvidenceChip key={id} id={id} onSelect={onSelect} invalid={!valid.has(id) || a.invalidEvidenceIds.includes(id)} />
         ))}
@@ -231,7 +229,7 @@ function VerdictCard({ d, valid, onSelect, onReview, onReviewDispute }: { d: Del
   const g = d.guardrails;
   const canReview = d.decisionType === 'refund' && !!d.executable && (d.finalOutcome === 'APPROVE' || d.finalOutcome === 'APPROVE_MODIFIED');
   return (
-    <section aria-label="Verdict" className="rounded-[12px] border border-white/[0.08] bg-ink-950/60 p-4">
+    <section aria-label="Verdict" className="rounded-[10px] border border-white/[0.08] bg-ink-950/60 p-3.5">
       <header className="flex flex-wrap items-center gap-2">
         <Gavel aria-hidden className="h-4 w-4 text-violet-300" />
         <h3 className="text-sm font-semibold text-white">Verdict</h3>
@@ -245,8 +243,8 @@ function VerdictCard({ d, valid, onSelect, onReview, onReviewDispute }: { d: Del
 
       {j ? (
         <>
-          <p className="mt-2 text-sm text-slate-200">{j.rationale}</p>
-          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+          <p className="mt-1.5 text-[13px] leading-relaxed text-slate-200">{j.rationale}</p>
+          <dl className="mt-2.5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
             <div>
               <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Decision</dt>
               <dd className="mt-0.5 text-sm text-slate-200">
@@ -256,7 +254,7 @@ function VerdictCard({ d, valid, onSelect, onReview, onReviewDispute }: { d: Del
             </div>
             <div>
               <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Strongest dissent</dt>
-              <dd className="mt-0.5 text-sm text-slate-300">{j.strongestDissent || 'None recorded'}</dd>
+              <dd className="mt-0.5 text-[13px] text-slate-400">{j.strongestDissent || 'None recorded'}</dd>
             </div>
           </dl>
           {j.decisiveArguments.length > 0 && (
@@ -264,7 +262,7 @@ function VerdictCard({ d, valid, onSelect, onReview, onReviewDispute }: { d: Del
               <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Decisive arguments</h4>
               <ul className="mt-1 space-y-1.5">
                 {j.decisiveArguments.map((a, i) => (
-                  <li key={i} className="text-sm text-slate-300">
+                  <li key={i} className="text-[13px] text-slate-300">
                     <Pill tone={a.from === 'advocate' ? 'success' : 'danger'}>{a.from}</Pill> {a.claim}{' '}
                     <span className="inline-flex flex-wrap gap-1 align-middle">
                       {a.evidenceIds.map((id) => (
@@ -279,7 +277,7 @@ function VerdictCard({ d, valid, onSelect, onReview, onReviewDispute }: { d: Del
           {j.conditions.length > 0 && (
             <div className="mt-3">
               <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Conditions</h4>
-              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-slate-300">
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[13px] text-slate-300">
                 {j.conditions.map((c) => (
                   <li key={c}>{c}</li>
                 ))}
@@ -292,7 +290,7 @@ function VerdictCard({ d, valid, onSelect, onReview, onReviewDispute }: { d: Del
       )}
 
       {g && (
-        <div className={cx('mt-4 rounded-lg p-3 ring-1 ring-inset', g.overridden ? 'bg-amber-400/[0.06] ring-amber-400/25' : 'bg-teal/[0.06] ring-teal/20')}>
+        <div className={cx('mt-3 rounded-lg px-3 py-2 ring-1 ring-inset', g.overridden ? 'bg-amber-400/[0.06] ring-amber-400/25' : 'bg-teal/[0.06] ring-teal/20')}>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             {g.overridden ? <ShieldAlert aria-hidden className="h-4 w-4 text-amber-300" /> : <ShieldCheck aria-hidden className="h-4 w-4 text-teal" />}
             <span className="font-medium text-slate-100">Guardrail result:</span>

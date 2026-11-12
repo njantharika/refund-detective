@@ -25,7 +25,8 @@ describe('Investigation workspace', () => {
     // A finding backed only by unverified merchant input is labelled as an allegation.
     const claim = screen.getByText('Customer Missing Email Claim').closest('li')!;
     expect(within(claim).getByText('allegation only')).toBeInTheDocument();
-    // Missing evidence appears as a timeline marker.
+    // Missing evidence appears as a timeline marker on the Evidence tab.
+    await userEvent.click(screen.getByRole('tab', { name: /Evidence/ }));
     expect(screen.getByText(/Event Monitor not configured/)).toBeInTheDocument();
   });
 
@@ -36,7 +37,11 @@ describe('Investigation workspace', () => {
     const finding = (await screen.findByText('Successful Payment Capture')).closest('li')!;
     await userEvent.click(within(finding).getByRole('button', { name: 'Show evidence EV-002' }));
     expect(scroll).toHaveBeenCalled();
+    expect(screen.getByRole('tab', { name: /Evidence/ })).toHaveAttribute('aria-selected', 'true');
     expect(document.getElementById('ev-EV-002')).toHaveClass('ring-1');
+    // A back link returns to where the citation was clicked.
+    await userEvent.click(screen.getByRole('button', { name: /Back to Report/ }));
+    expect(await screen.findByText('Successful Payment Capture')).toBeInTheDocument();
   });
 
   it('keeps the refund CTA disabled until a council approves, and labels the proposal as a recommendation', async () => {

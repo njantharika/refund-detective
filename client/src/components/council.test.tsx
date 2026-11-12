@@ -40,7 +40,7 @@ function renderWorkspace(d: Deliberation, opts: { eligible?: boolean; inv?: Inve
     [`/api/investigations/${inv.id}/refund/approve`]: (_u, init) => ({ body: opts.onApprove?.(JSON.parse(String(init?.body))) ?? { id: 'rf_1', investigationId: inv.id, deliberationId: d.id, captureId: '0NM23031PE726202M', paypalRefundId: '8RS12345AB678901C', amount: '42.00', currency: 'USD', reason: 'x', status: 'completed', idempotencyKey: 'abcdef12-3456', approvedBy: 'merchant', approvedAt: '2026-11-12T00:02:00Z', executedAt: '2026-11-12T00:02:01Z', paypalResponseSummary: 'Verified via get_refund: 8RS12345AB678901C COMPLETED', createdAt: '', reconciling: false } }),
     [`/api/investigations/${inv.id}`]: { body: inv },
   });
-  renderWithProviders(<Routes><Route path="/investigations/:id" element={<InvestigationWorkspace />} /></Routes>, { route: `/investigations/${inv.id}` });
+  renderWithProviders(<Routes><Route path="/investigations/:id" element={<InvestigationWorkspace />} /></Routes>, { route: `/investigations/${inv.id}?tab=council` });
   return spy;
 }
 
