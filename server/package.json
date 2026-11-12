@@ -10,6 +10,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "seed:sandbox": "tsx --env-file-if-exists=../.env scripts/seed-sandbox.ts",
+    "export:snapshot": "tsx --env-file-if-exists=../.env scripts/export-snapshot.ts",
     "test:sandbox": "tsx --env-file-if-exists=../.env scripts/sandbox-smoke.ts",
     "check:ai": "tsx --env-file-if-exists=../.env scripts/check-ai.ts"
   },

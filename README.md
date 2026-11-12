@@ -106,7 +106,9 @@ cloudflared tunnel --url http://localhost:3001     # or: ngrok http 3001
 Add `https://<tunnel>/api/webhooks/paypal` as a webhook on your Sandbox app (PAYMENT.CAPTURE.\* and CUSTOMER.DISPUTE.\*), then set `PAYPAL_WEBHOOK_ID`. Every event is verified with PayPal's `verify-webhook-signature`. Unverified events are stored but never used as evidence. Without a webhook ID, investigations list webhooks as missing evidence, and nothing is simulated.
 
 ## Deploy (Render)
-[`render.yaml`](render.yaml) defines one web service: `npm ci && npm run build`, then `npm start`. Set `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and `GEMINI_API_KEY` in the Render dashboard. The MCP child process runs inside the same service. On the free plan the SQLite file is ephemeral; attach a disk and set `DATABASE_PATH` to keep data.
+[`render.yaml`](render.yaml) defines one web service: `npm ci --include=dev && npm run build`, then `npm start`. Set `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and `GEMINI_API_KEY` in the Render dashboard. The MCP child process runs inside the same service. On the free plan the SQLite file is ephemeral; attach a disk and set `DATABASE_PATH` to keep data.
+
+**History on the hosted demo.** `npm run export:snapshot` writes the local app history (tracked Sandbox orders, investigations, evidence, councils, refunds, audit) to `server/seed/hosted-snapshot.json`. With `IMPORT_SNAPSHOT=true` (set in `render.yaml`), a fresh hosted database imports it once on boot; it never imports into a database that already has history. The file holds no credentials, and PayPal state (captures, refunds, eligibility) is always re-fetched live. Settings shows when the history was imported.
 
 ## AI models and developer tools
 

@@ -7,6 +7,7 @@ import { PayPalError } from '../services/paypal/paypal.types.js';
 import { TRANSACTION_SEARCH_403_HINT } from '../services/paypal/paypal-transaction.service.js';
 import { aiStatus } from '../ai/status.js';
 import { DEMO_MODE_MESSAGE } from '../services/demo.js';
+import { lastSnapshotImport } from '../database/snapshot.js';
 
 export const APP_VERSION = '0.1.0';
 
@@ -54,7 +55,7 @@ export function settingsRouter({ cfg, db, paypal }: AppDeps) {
       },
       ai: aiStatus(cfg),
       // Never expose absolute local paths (they can contain the OS username).
-      database: { path: displayPath(cfg.DATABASE_PATH), sizeBytes: dbSize },
+      database: { path: displayPath(cfg.DATABASE_PATH), sizeBytes: dbSize, snapshotImport: lastSnapshotImport(db) },
       webhooks: { configured: Boolean(cfg.PAYPAL_WEBHOOK_ID), received: webhookCount },
     });
   });

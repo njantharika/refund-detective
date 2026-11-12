@@ -16,6 +16,7 @@
     "test": "npm run test -w server && npm run test -w client",
     "start": "npm run start -w server",
     "seed:sandbox": "npm run seed:sandbox -w server",
+    "export:snapshot": "npm run export:snapshot -w server",
     "test:sandbox": "npm run test:sandbox -w server",
     "check:ai": "npm run check:ai -w server"
   },

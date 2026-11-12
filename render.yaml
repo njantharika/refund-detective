@@ -29,5 +29,9 @@ services:
         value: "false"
       # Free instances have an ephemeral filesystem: the SQLite DB resets on redeploy/restart.
       # For persistence, attach a Render disk and point DATABASE_PATH at it (e.g. /var/data/refund-detective.db).
+      # Start with the history exported from a local run (npm run export:snapshot): investigations,
+      # councils, refunds and audit. Imported only into an empty DB; PayPal state is always re-fetched live.
+      - key: IMPORT_SNAPSHOT
+        value: "true"
       - key: DATABASE_PATH
         value: ./data/refund-detective.db

@@ -27,6 +27,7 @@ const EnvSchema = z.object({
   AI_MODEL_JUDGE: optStr,
   AI_MODEL_FALLBACK: optStr,
   COUNCIL_REBUTTAL: z.preprocess(blankToUndefined, z.string().default('false')).transform((v) => v === 'true'),
+  IMPORT_SNAPSHOT: z.preprocess(blankToUndefined, z.enum(['true', 'false']).default('false')).transform((v) => v === 'true'),
   DATABASE_PATH: z.preprocess(blankToUndefined, z.string().default('./data/refund-detective.db')),
   PORT: z.preprocess(blankToUndefined, z.coerce.number().int().default(3001)),
   LOG_LEVEL: z.preprocess(blankToUndefined, z.string().default('info')),

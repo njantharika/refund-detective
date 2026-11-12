@@ -170,6 +170,11 @@ export function SettingsPage() {
               <Field label="Database size">{s.database.sizeBytes !== null ? `${(s.database.sizeBytes / 1024).toFixed(0)} KB` : 'Not available'}</Field>
               <Field label="Webhooks">{s.webhooks.configured ? `Configured · ${s.webhooks.received} received` : 'Not configured'}</Field>
             </dl>
+            {s.database.snapshotImport && (
+              <p className="mt-4 text-xs text-slate-400">
+                History (investigations, councils, refunds, audit) was imported from a local Sandbox run exported {s.database.snapshotImport.exportedAt ? dateTime(s.database.snapshotImport.exportedAt) : 'earlier'} ({s.database.snapshotImport.rows ?? '?'} records). PayPal data is always fetched live.
+              </p>
+            )}
           </Card>
         </div>
       )}

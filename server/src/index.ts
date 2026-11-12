@@ -1,6 +1,9 @@
 import { loadConfig, SandboxOnlyError } from './config.js';
 import { openDatabase } from './database/db.js';
 import { logger } from './lib/logger.js';
+import path from 'node:path';
+import { REPO_ROOT } from './config.js';
+import { importSnapshotFile } from './database/snapshot.js';
 import { createPayPalIntegration } from './services/paypal/index.js';
 import { buildDeps, createApp } from './app.js';
 
@@ -14,6 +17,10 @@ try {
 }
 
 const db = openDatabase(cfg.DATABASE_PATH);
+if (cfg.IMPORT_SNAPSHOT) {
+  const r = importSnapshotFile(db, path.join(REPO_ROOT, 'server/seed/hosted-snapshot.json'));
+  logger.info(r, r.imported ? 'imported local history snapshot' : 'snapshot not imported');
+}
 const paypal = createPayPalIntegration(cfg);
 const app = createApp(buildDeps(cfg, db, paypal));
 

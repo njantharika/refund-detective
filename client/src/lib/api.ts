@@ -162,7 +162,7 @@ export interface IntegrationStatus {
     restFallback: { available: boolean; active: boolean };
   };
   ai: { provider: string; configured: boolean; message: string | null; models: Record<'investigator' | 'advocate' | 'challenger' | 'judge', string>; councilRebuttal: boolean };
-  database: { path: string; sizeBytes: number | null };
+  database: { path: string; sizeBytes: number | null; snapshotImport?: { exportedAt: string | null; rows: number | null; importedAt: string } | null };
   webhooks: { configured: boolean; received: number };
 }
 
