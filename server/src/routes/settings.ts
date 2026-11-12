@@ -16,6 +16,18 @@ export function displayPath(p: string): string {
   return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? `./${rel}` : path.basename(p);
 }
 
+/**
+ * Safe credential fingerprint, so a hosted deploy can be compared with a local .env without
+ * sharing secrets. The client ID is public (PayPal ships it in browser checkout code); the
+ * secret is reported by length only.
+ */
+export function credentialFingerprint(clientId: string | undefined, secret: string | undefined) {
+  return {
+    clientId: clientId ? { length: clientId.length, last4: clientId.slice(-4) } : null,
+    secret: secret ? { length: secret.length } : null,
+  };
+}
+
 /** Never returns secret values: only whether each is configured. */
 export function settingsRouter({ cfg, db, paypal }: AppDeps) {
   const r = Router();
@@ -32,6 +44,7 @@ export function settingsRouter({ cfg, db, paypal }: AppDeps) {
         environment: cfg.PAYPAL_ENVIRONMENT,
         apiBase: cfg.PAYPAL_API_BASE,
         auth: { mode: auth.mode, hasToken: auth.hasToken, expiresAt: auth.expiresAt, warning: auth.warning, lastError: auth.lastError },
+        credentials: credentialFingerprint(cfg.PAYPAL_CLIENT_ID, cfg.PAYPAL_CLIENT_SECRET),
         mcp,
         tools: paypal.registry.discoveredTools(),
         missingAllowedTools: mcp?.state === 'ready' ? paypal.registry.missingAllowedTools() : [],

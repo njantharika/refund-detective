@@ -18,6 +18,13 @@ describe('PayPal token lifecycle', () => {
     expect(isAuthError(new PayPalError('insufficient permissions', 403, 'PAYPAL_FORBIDDEN'))).toBe(false);
   });
 
+  it("surfaces PayPal's OAuth error code and a credentials hint on 401", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: 'invalid_client', error_description: 'Client Authentication failed' }), { status: 401 }));
+    const auth = new PayPalAuth(ccConfig(), fetchMock as unknown as typeof fetch);
+    await expect(auth.getToken()).rejects.toThrow(/HTTP 401\): invalid_client: Client Authentication failed\. Check that PAYPAL_CLIENT_ID/);
+    auth.stop();
+  });
+
   it('reports staleness inside the 5-minute margin and after invalidate()', async () => {
     const fetchMock = vi.fn(async () => tokenResponse('t1', 600));
     const auth = new PayPalAuth(ccConfig(), fetchMock as unknown as typeof fetch);

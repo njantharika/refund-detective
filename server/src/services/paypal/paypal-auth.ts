@@ -57,7 +57,13 @@ export class PayPalAuth extends EventEmitter {
           body: 'grant_type=client_credentials',
           signal: AbortSignal.timeout(15_000),
         });
-        if (!res.ok) throw new PayPalError(`OAuth token request failed (HTTP ${res.status})`, res.status, 'OAUTH_FAILED');
+        if (!res.ok) {
+          // PayPal's error code (e.g. invalid_client) is safe to surface and says *why* auth failed.
+          const err = (await res.json().catch(() => null)) as { error?: unknown; error_description?: unknown } | null;
+          const why = [err?.error, err?.error_description].filter((x): x is string => typeof x === 'string' && x.length < 200).join(': ');
+          const hint = err?.error === 'invalid_client' ? ' Check that PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET are the Sandbox pair from the same app.' : '';
+          throw new PayPalError(`OAuth token request failed (HTTP ${res.status})${why ? `: ${why}` : ''}.${hint}`, res.status, 'OAUTH_FAILED');
+        }
         const body = (await res.json()) as { access_token: string; expires_in: number };
         this.token = body.access_token;
         this.expiresAtMs = Date.now() + body.expires_in * 1000;

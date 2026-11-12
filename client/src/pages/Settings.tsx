@@ -70,6 +70,12 @@ export function SettingsPage() {
               <Field label="Auth mode">{s.paypal.auth.mode.replace('_', ' ')}</Field>
               <Field label="Token">{s.paypal.auth.hasToken ? 'Present (hidden)' : 'Missing'}</Field>
               <Field label="Token expiry">{s.paypal.auth.expiresAt ? <Countdown iso={s.paypal.auth.expiresAt} /> : s.paypal.auth.mode === 'static_token' ? 'Unknown (static token)' : 'Not available'}</Field>
+              {s.paypal.credentials && (
+                <>
+                  <Field label="Client ID" mono>{s.paypal.credentials.clientId ? `…${s.paypal.credentials.clientId.last4} · ${s.paypal.credentials.clientId.length} chars` : 'Not set'}</Field>
+                  <Field label="Client secret">{s.paypal.credentials.secret ? `Set (hidden) · ${s.paypal.credentials.secret.length} chars` : 'Not set'}</Field>
+                </>
+              )}
             </dl>
             {s.paypal.auth.warning && (
               <div className="mt-4">

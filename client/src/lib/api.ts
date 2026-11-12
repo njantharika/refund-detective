@@ -153,6 +153,7 @@ export interface IntegrationStatus {
     environment: string;
     apiBase: string;
     auth: { mode: 'client_credentials' | 'static_token' | 'none'; hasToken: boolean; expiresAt: string | null; warning: string | null; lastError: string | null };
+    credentials?: { clientId: { length: number; last4: string } | null; secret: { length: number } | null };
     mcp: { state: string; serverName: string | null; serverVersion: string | null; toolCount: number; restarts: number; lastError: string | null; command: string } | null;
     tools: { name: string; allowed: boolean }[];
     missingAllowedTools: string[];

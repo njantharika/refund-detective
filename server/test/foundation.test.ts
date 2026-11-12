@@ -100,6 +100,13 @@ describe('GET /api/settings/integration-status', () => {
     expect(res.body.paypal.auth.warning).toMatch(/token expires; add client credentials/);
     expect(res.body.ai).toMatchObject({ configured: false, message: 'AI not configured' });
   });
+  it('fingerprints credentials without revealing the secret', async () => {
+    const { credentialFingerprint } = await import('../src/routes/settings.js');
+    const fp = credentialFingerprint('AbcdEFGH1234wxyz', 'super-secret-value');
+    expect(fp).toEqual({ clientId: { length: 16, last4: 'wxyz' }, secret: { length: 18 } });
+    expect(JSON.stringify(fp)).not.toContain('super');
+    expect(credentialFingerprint(undefined, undefined)).toEqual({ clientId: null, secret: null });
+  });
   it('shows the database path relative to the repo, never an absolute path', async () => {
     const { displayPath } = await import('../src/routes/settings.js');
     const { REPO_ROOT } = await import('../src/config.js');
