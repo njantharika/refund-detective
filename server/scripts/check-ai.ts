@@ -35,10 +35,10 @@ for (const [role, model] of Object.entries(roles)) {
 const { createAI } = await import('../src/ai/provider.js');
 const { z } = await import('zod');
 const ai = createAI(cfg);
-for (const model of [...new Set(Object.values(roles))]) {
+for (const model of [...new Set([...Object.values(roles), ...(Object.values(cfg.AI_FALLBACKS).filter(Boolean) as string[])])]) {
   const t0 = Date.now();
   try {
-    const r = await ai.complete({ system: 'Reply with JSON.', messages: [{ role: 'user', content: 'Say ok.' }], schema: z.object({ ok: z.boolean() }), schemaName: 'Ping', model, timeoutMs: 30_000 });
+    const r = await ai.complete({ system: 'Reply with JSON.', messages: [{ role: 'user', content: 'Say ok.' }], schema: z.object({ ok: z.boolean() }), schemaName: 'Ping', model, fallbackModel: null, timeoutMs: 30_000 });
     console.log(`PASS  live call   ${model} → ${r.model} in ${Date.now() - t0}ms`);
   } catch (e) {
     missing++;

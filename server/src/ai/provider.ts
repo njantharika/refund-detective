@@ -11,6 +11,8 @@ export interface CompleteArgs<T> {
   schemaName: string;
   model: string;
   timeoutMs: number;
+  /** Per-call fallback model (overrides the provider default; null disables fallback). */
+  fallbackModel?: string | null;
   /** Called on each retry so the UI can show "waiting for rate limit" honestly. */
   onRetry?: (info: { reason: string; attempt: number; waitMs: number; model: string }) => void;
 }
@@ -123,7 +125,7 @@ export class StructuredAI implements AIProvider {
     let validationRetried = false;
 
     for (;;) {
-      const { text, model } = await this.callWithRetries({ ...args, system, messages, jsonSchema, deadline }, () => attempts++);
+      const { text, model } = await this.callWithRetries({ ...args, system, messages, jsonSchema, deadline, fallback: args.fallbackModel === undefined ? this.fallbackModel : args.fallbackModel }, () => attempts++);
       let parsed: unknown;
       let problem: string | null = null;
       try {
@@ -154,32 +156,49 @@ export class StructuredAI implements AIProvider {
   }
 
   private async callWithRetries(
-    a: { system: string; messages: ChatMessage[]; jsonSchema: Record<string, unknown>; schemaName: string; model: string; deadline: number; onRetry?: CompleteArgs<unknown>['onRetry'] },
+    a: { system: string; messages: ChatMessage[]; jsonSchema: Record<string, unknown>; schemaName: string; model: string; deadline: number; timeoutMs: number; fallback: string | null; onRetry?: CompleteArgs<unknown>['onRetry'] },
     countAttempt: () => void,
   ): Promise<{ text: string; model: string }> {
     const base = this.opts.baseBackoffMs ?? 2000;
-    const plan: string[] = [a.model, a.model, a.model];
-    if (this.fallbackModel && this.fallbackModel !== a.model) plan.push(this.fallbackModel);
+    // Gemini free-tier quotas are per model, so on 429/5xx switch to the fallback model at once (no wait),
+    // and only wait (honouring retryDelay) when going back to a model that was throttled.
+    const fallback = a.fallback && a.fallback !== a.model ? a.fallback : null;
+    // A single hung attempt must not consume the whole budget, or no fallback is ever tried (seen live).
+    const attemptCap = fallback ? Math.max(10_000, Math.round(a.timeoutMs * 0.6)) : a.timeoutMs;
+    const MAX_ATTEMPTS = 4;
+    let model = a.model;
+    let fallbackTried = false;
+    let sameModelRetries = 0;
     let last: unknown;
-    for (let i = 0; i < plan.length; i++) {
-      const model = plan[i];
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
       const remaining = a.deadline - Date.now();
       if (remaining <= 500) break;
       countAttempt();
       try {
-        const text = await this.transport!.call({ system: a.system, messages: a.messages, jsonSchema: a.jsonSchema, schemaName: a.schemaName, model, signal: AbortSignal.timeout(remaining) });
+        const text = await this.transport!.call({ system: a.system, messages: a.messages, jsonSchema: a.jsonSchema, schemaName: a.schemaName, model, signal: AbortSignal.timeout(Math.min(remaining, attemptCap)) });
         return { text, model };
       } catch (e) {
         last = e;
-        const retryable = e instanceof TransportHttpError && RETRYABLE.has(e.status);
-        if (!retryable) break;
-        const next = plan[i + 1];
-        if (!next) break;
-        const wait = next === model ? Math.min(e.retryAfterMs ?? base * 2 ** i, 20_000) : 0;
+        const timedOut = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');
+        const retryable = (e instanceof TransportHttpError && RETRYABLE.has(e.status)) || (timedOut && !!fallback && !fallbackTried);
+        if (!retryable || i === MAX_ATTEMPTS - 1) break;
+        let next: string;
+        let wait: number;
+        if (fallback && !fallbackTried) {
+          next = fallback;
+          fallbackTried = true;
+          wait = 0;
+        } else {
+          next = a.model;
+          wait = Math.min((e instanceof TransportHttpError ? e.retryAfterMs : null) ?? base * 2 ** sameModelRetries, 20_000);
+          sameModelRetries++;
+        }
         if (Date.now() + wait >= a.deadline - 500) break;
-        a.onRetry?.({ reason: e.status === 429 ? 'rate_limited' : 'model_unavailable', attempt: i + 1, waitMs: wait, model: next });
-        logger.warn({ status: e.status, model, next, waitMs: wait }, 'ai transport retry');
+        const status = e instanceof TransportHttpError ? e.status : 'timeout';
+        a.onRetry?.({ reason: status === 429 ? 'rate_limited' : 'model_unavailable', attempt: i + 1, waitMs: wait, model: next });
+        logger.warn({ status, model, next, waitMs: wait }, 'ai transport retry');
         if (wait) await sleep(wait);
+        model = next;
       }
     }
     if (last instanceof TransportHttpError) {
@@ -272,11 +291,15 @@ export class AnthropicTransport implements RawTransport {
 
 export function createAI(cfg: AppConfig): StructuredAI {
   if (!cfg.AI_API_KEY) return new StructuredAI(null, null);
-  if (cfg.AI_PROVIDER === 'anthropic') return new StructuredAI(new AnthropicTransport(cfg.AI_API_KEY), cfg.AI_MODEL_FALLBACK);
+  if (cfg.AI_PROVIDER === 'anthropic') return new StructuredAI(new AnthropicTransport(cfg.AI_API_KEY), null);
   if (!cfg.AI_BASE_URL) return new StructuredAI(null, null);
-  return new StructuredAI(new OpenAICompatibleTransport(cfg.AI_PROVIDER, cfg.AI_BASE_URL, cfg.AI_API_KEY), cfg.AI_MODEL_FALLBACK);
+  return new StructuredAI(new OpenAICompatibleTransport(cfg.AI_PROVIDER, cfg.AI_BASE_URL, cfg.AI_API_KEY), null);
 }
 
 export function modelFor(cfg: AppConfig, role: 'investigator' | 'advocate' | 'challenger' | 'judge'): string {
   return { investigator: cfg.AI_MODEL_INVESTIGATOR, advocate: cfg.AI_MODEL_ADVOCATE, challenger: cfg.AI_MODEL_CHALLENGER, judge: cfg.AI_MODEL_JUDGE }[role];
+}
+
+export function fallbackFor(cfg: AppConfig, role: 'investigator' | 'advocate' | 'challenger' | 'judge'): string | null {
+  return cfg.AI_FALLBACKS[role];
 }

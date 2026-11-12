@@ -38,11 +38,36 @@ describe('StructuredAI', () => {
     expect(onRetry).toHaveBeenCalledWith(expect.objectContaining({ reason: 'rate_limited' }));
   });
 
-  it('falls back to the fallback model after repeated 503s', async () => {
-    const { ai, transport } = fakeAI([httpErr(503), httpErr(503), httpErr(503), { verdict: 'APPROVE', confidence: 0.8 }], 'fallback-model');
+  it('switches to the fallback model immediately on 429/503 (per-model quotas)', async () => {
+    const { ai, transport } = fakeAI([httpErr(429), { verdict: 'APPROVE', confidence: 0.8 }], 'fallback-model');
     const r = await ai.complete(args);
     expect(r.model).toBe('fallback-model');
-    expect(transport.requests.map((q) => q.model)).toEqual(['m1', 'm1', 'm1', 'fallback-model']);
+    expect(transport.requests.map((q) => q.model)).toEqual(['m1', 'fallback-model']);
+  });
+
+  it('a hung attempt times out early so the fallback still gets a chance', async () => {
+    const t = { name: 'hang', calls: [] as string[], async call(req: { model: string; signal: AbortSignal }) {
+      this.calls.push(req.model);
+      if (req.model === 'm1') return new Promise<string>((_, rej) => req.signal.addEventListener('abort', () => rej(Object.assign(new Error('aborted'), { name: 'TimeoutError' }))));
+      return '{"verdict":"REJECT","confidence":1}';
+    } };
+    const ai = new StructuredAI(t as never, null, { baseBackoffMs: 1 });
+    const r = await ai.complete({ ...args, timeoutMs: 20_000, fallbackModel: 'fb' });
+    expect(t.calls).toEqual(['m1', 'fb']);
+    expect(r.model).toBe('fb');
+  }, 20_000);
+
+  it('per-call fallbackModel overrides the provider default', async () => {
+    const { ai, transport } = fakeAI([httpErr(429), { verdict: 'APPROVE', confidence: 0.8 }], 'default-fb');
+    await ai.complete({ ...args, fallbackModel: 'role-fb' });
+    expect(transport.requests.map((q) => q.model)).toEqual(['m1', 'role-fb']);
+  });
+
+  it('returns to the primary model with backoff when the fallback is also throttled', async () => {
+    const { ai, transport } = fakeAI([httpErr(503), httpErr(503), { verdict: 'APPROVE', confidence: 0.8 }], 'fallback-model');
+    const r = await ai.complete(args);
+    expect(r.model).toBe('m1');
+    expect(transport.requests.map((q) => q.model)).toEqual(['m1', 'fallback-model', 'm1']);
   });
 
   it('surfaces rate limiting when every attempt is 429', async () => {

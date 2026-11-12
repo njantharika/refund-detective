@@ -17,6 +17,7 @@ export interface InvestigationDeps {
   paypal: PayPalIntegration;
   ai: AIProvider;
   model: string;
+  fallbackModel?: string | null;
 }
 
 interface Row {
@@ -131,7 +132,7 @@ export class InvestigationService {
     this.setStage(id, 'analyzing', 'Investigator reviewing evidence…');
     let result: InvestigatorResult;
     try {
-      result = await runInvestigator({ db, paypal, ai, model }, { evidence: collected.items, factSheet, complaint: input.complaint, onStage: (d) => this.setStage(id, 'analyzing', d) });
+      result = await runInvestigator({ db, paypal, ai, model, fallbackModel: this.deps.fallbackModel ?? null }, { evidence: collected.items, factSheet, complaint: input.complaint, onStage: (d) => this.setStage(id, 'analyzing', d) });
     } catch (e) {
       throw e instanceof AIError ? e : new AIError('AI_REQUEST_FAILED', String(e));
     }
@@ -229,6 +230,7 @@ export class InvestigationService {
         schema: ChatAnswer,
         schemaName: 'ChatAnswer',
         model,
+        fallbackModel: this.deps.fallbackModel ?? null,
         timeoutMs: 45_000,
       });
     } catch (e) {

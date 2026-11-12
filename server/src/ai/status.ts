@@ -14,6 +14,7 @@ export function aiStatus(cfg: AppConfig) {
       challenger: cfg.AI_MODEL_CHALLENGER,
       judge: cfg.AI_MODEL_JUDGE,
     },
+    fallbacks: cfg.AI_FALLBACKS,
     councilRebuttal: cfg.COUNCIL_REBUTTAL,
   };
 }

@@ -107,7 +107,7 @@ export class InvestigatorTools {
   }
 }
 
-export async function runInvestigator(deps: { db: DB; paypal: PayPalIntegration; ai: AIProvider; model: string }, input: { evidence: EvidenceItem[]; factSheet: FactSheet; complaint: string; onStage?: (detail: string) => void }): Promise<InvestigatorResult> {
+export async function runInvestigator(deps: { db: DB; paypal: PayPalIntegration; ai: AIProvider; model: string; fallbackModel?: string | null }, input: { evidence: EvidenceItem[]; factSheet: FactSheet; complaint: string; onStage?: (detail: string) => void }): Promise<InvestigatorResult> {
   const started = Date.now();
   const deadline = started + INVESTIGATOR_BUDGET_MS;
   const tools = new InvestigatorTools(deps, input.evidence);
@@ -129,16 +129,20 @@ export async function runInvestigator(deps: { db: DB; paypal: PayPalIntegration;
       schema: InvestigationPlan,
       schemaName: 'InvestigationPlan',
       model: deps.model,
+      fallbackModel: deps.fallbackModel ?? null,
       timeoutMs: Math.min(20_000, remaining - 20_000),
       onRetry,
     });
     attempts += plan.attempts;
     if (!plan.data.needsMoreEvidence || plan.data.toolRequests.length === 0) break;
+    let added = 0;
     for (const r of plan.data.toolRequests) {
       if (tools.calls.length >= MAX_TOOL_CALLS) break;
       input.onStage?.(`Looking up ${r.tool.replace('_', ' ')} ${r.id}…`);
-      await tools.run(r);
+      added += (await tools.run(r)).addedEvidenceIds.length;
     }
+    // A follow-up planning round only makes sense if the lookups changed the evidence (saves AI quota).
+    if (added === 0) break;
   }
 
   input.onStage?.('Investigator writing the report…');
@@ -154,6 +158,7 @@ export async function runInvestigator(deps: { db: DB; paypal: PayPalIntegration;
     schema: InvestigationReport,
     schemaName: 'InvestigationReport',
     model: deps.model,
+    fallbackModel: deps.fallbackModel ?? null,
     timeoutMs: Math.max(5_000, remaining),
     onRetry,
   });

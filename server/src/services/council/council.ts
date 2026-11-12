@@ -23,7 +23,7 @@ export interface CouncilDeps {
   db: DB;
   paypal: PayPalIntegration;
   ai: AIProvider;
-  cfg: Pick<AppConfig, 'AI_MODEL_ADVOCATE' | 'AI_MODEL_CHALLENGER' | 'AI_MODEL_JUDGE' | 'COUNCIL_REBUTTAL'>;
+  cfg: Pick<AppConfig, 'AI_MODEL_ADVOCATE' | 'AI_MODEL_CHALLENGER' | 'AI_MODEL_JUDGE' | 'COUNCIL_REBUTTAL'> & { AI_FALLBACKS?: AppConfig['AI_FALLBACKS'] };
   investigations: InvestigationService;
 }
 
@@ -91,6 +91,7 @@ export class CouncilService {
           schema: ArgumentSet,
           schemaName: 'ArgumentSet',
           model: role === 'advocate' ? cfg.AI_MODEL_ADVOCATE : cfg.AI_MODEL_CHALLENGER,
+          fallbackModel: cfg.AI_FALLBACKS?.[role] ?? null,
           timeoutMs: Math.min(AGENT_BUDGET_MS, deadline - Date.now()),
         });
         if (out.data.role !== role) throw new AIError('AI_INVALID_OUTPUT', `Expected role ${role}, got ${out.data.role}`);
@@ -130,6 +131,7 @@ export class CouncilService {
             schema: Rebuttal,
             schemaName: 'Rebuttal',
             model: role === 'advocate' ? cfg.AI_MODEL_ADVOCATE : cfg.AI_MODEL_CHALLENGER,
+            fallbackModel: cfg.AI_FALLBACKS?.[role] ?? null,
             timeoutMs: Math.min(AGENT_BUDGET_MS, deadline - Date.now() - 45_000),
           });
           return out.data;
@@ -158,6 +160,7 @@ export class CouncilService {
         schema: JudgeVerdict,
         schemaName: 'JudgeVerdict',
         model: cfg.AI_MODEL_JUDGE,
+        fallbackModel: cfg.AI_FALLBACKS?.judge ?? null,
         timeoutMs: Math.max(5_000, Math.min(AGENT_BUDGET_MS, deadline - Date.now())),
       });
       judge = out.data;

@@ -11,7 +11,7 @@ import { transactionsRouter } from './routes/transactions.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { settingsRouter, APP_VERSION } from './routes/settings.js';
 import { investigationsRouter } from './routes/investigations.js';
-import { createAI, modelFor, type AIProvider } from './ai/provider.js';
+import { createAI, fallbackFor, modelFor, type AIProvider } from './ai/provider.js';
 import { InvestigationService } from './services/investigation/investigation.service.js';
 import { CouncilService } from './services/council/council.js';
 import { RefundService } from './services/refund/refund.service.js';
@@ -29,7 +29,7 @@ export interface AppDeps {
 }
 
 export function buildDeps(cfg: AppConfig, db: DB, paypal: PayPalIntegration, ai: AIProvider = createAI(cfg)): AppDeps {
-  const investigations = new InvestigationService({ db, paypal, ai, model: modelFor(cfg, 'investigator') });
+  const investigations = new InvestigationService({ db, paypal, ai, model: modelFor(cfg, 'investigator'), fallbackModel: fallbackFor(cfg, 'investigator') });
   const council = new CouncilService({ db, paypal, ai, cfg, investigations });
   const refunds = new RefundService({ db, paypal, investigations, council });
   return { cfg, db, paypal, ai, explorer: new ExplorerService(db, paypal), investigations, council, refunds };

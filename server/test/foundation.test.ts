@@ -89,6 +89,10 @@ describe('config: AI provider presets', () => {
     expect(c.AI_API_KEY).toBe('k');
     expect(c.AI_MODEL_INVESTIGATOR).toMatch(/^gemini-/);
     expect(c.AI_MODEL_JUDGE).toMatch(/^gemini-/);
+    // The two parallel agents never share a fallback model.
+    expect(c.AI_FALLBACKS.advocate).not.toBe(c.AI_FALLBACKS.challenger);
+    expect(c.AI_FALLBACKS.advocate).not.toBe(c.AI_MODEL_CHALLENGER);
+    expect(c.AI_FALLBACKS.challenger).not.toBe(c.AI_MODEL_ADVOCATE);
   });
   it('env model overrides win over provider defaults', () => {
     expect(loadConfig({ AI_PROVIDER: 'gemini', AI_MODEL_JUDGE: 'gemini-x' }).AI_MODEL_JUDGE).toBe('gemini-x');
