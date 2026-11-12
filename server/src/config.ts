@@ -4,18 +4,22 @@ import { fileURLToPath } from 'node:url';
 
 const blankToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
 const optStr = z.preprocess(blankToUndefined, z.string().optional());
+// Credentials pasted into a hosting dashboard often carry a trailing newline/space or
+// surrounding quotes; PayPal then answers 401. Normalise them before use.
+const cleanCredential = (v: unknown) => (typeof v === 'string' ? blankToUndefined(v.trim().replace(/^(['"])(.*)\1$/, '$2').trim()) : v);
+const optSecret = z.preprocess(cleanCredential, z.string().optional());
 
 const EnvSchema = z.object({
   NODE_ENV: optStr,
   PAYPAL_ENVIRONMENT: z.preprocess(blankToUndefined, z.string().default('SANDBOX')),
-  PAYPAL_CLIENT_ID: optStr,
-  PAYPAL_CLIENT_SECRET: optStr,
-  PAYPAL_ACCESS_TOKEN: optStr,
-  PAYPAL_WEBHOOK_ID: optStr,
+  PAYPAL_CLIENT_ID: optSecret,
+  PAYPAL_CLIENT_SECRET: optSecret,
+  PAYPAL_ACCESS_TOKEN: optSecret,
+  PAYPAL_WEBHOOK_ID: optSecret,
   AI_PROVIDER: z.preprocess(blankToUndefined, z.enum(['anthropic', 'gemini', 'openai']).default('anthropic')),
-  ANTHROPIC_API_KEY: optStr,
-  GEMINI_API_KEY: optStr,
-  OPENAI_API_KEY: optStr,
+  ANTHROPIC_API_KEY: optSecret,
+  GEMINI_API_KEY: optSecret,
+  OPENAI_API_KEY: optSecret,
   OPENAI_BASE_URL: optStr,
   AI_MODEL_INVESTIGATOR: optStr,
   AI_MODEL_ADVOCATE: optStr,

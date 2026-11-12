@@ -22,6 +22,13 @@ describe('config: sandbox-only guard', () => {
     expect(c.AI_MODEL_INVESTIGATOR).toBe('claude-sonnet-5-5');
     expect(c.PORT).toBe(3001);
   });
+  it('normalises credentials pasted with whitespace, newlines or quotes', () => {
+    const c = loadConfig({ PAYPAL_CLIENT_ID: '  AbC123\n', PAYPAL_CLIENT_SECRET: '"Sec-ret_9"', GEMINI_API_KEY: "'key '", PAYPAL_WEBHOOK_ID: '   ' });
+    expect(c.PAYPAL_CLIENT_ID).toBe('AbC123');
+    expect(c.PAYPAL_CLIENT_SECRET).toBe('Sec-ret_9');
+    expect(c.GEMINI_API_KEY).toBe('key');
+    expect(c.PAYPAL_WEBHOOK_ID).toBeUndefined();
+  });
 });
 
 describe('database migration', () => {
