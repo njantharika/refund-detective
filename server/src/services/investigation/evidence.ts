@@ -270,7 +270,7 @@ export async function collectEvidence(deps: { db: DB; paypal: PayPalIntegration 
     });
   }
   const webhookCount = db.prepare('SELECT COUNT(*) FROM webhook_events').pluck().get() as number;
-  if (webhookCount === 0) unavailable.push('No PayPal webhook events received (Event Monitor not configured)');
+  if (webhookCount === 0) unavailable.push('No PayPal webhook events received (webhooks not configured)');
 
   // 6) In-app refund attempts and locks.
   const appRefunds = (

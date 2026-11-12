@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
 import { DisputesPage } from './Disputes';
-import { EventMonitorPage } from './EventMonitor';
 import { InsightsPage } from './Insights';
 import { RefundsPage } from './Refunds';
 import { DemoBanner } from '../components/Shell';
@@ -19,20 +18,6 @@ describe('Disputes', () => {
     renderWithProviders(<DisputesPage />);
     expect(await screen.findByText('PP-D-1')).toBeInTheDocument();
     expect(screen.getByText('$42.00')).toBeInTheDocument();
-  });
-});
-
-describe('Event Monitor', () => {
-  it('says Not configured (with setup steps) instead of simulating events', async () => {
-    mockFetch({ '/api/events': { body: { configured: false, items: [] } } });
-    renderWithProviders(<EventMonitorPage />);
-    expect(await screen.findByText('Webhooks are not configured')).toBeInTheDocument();
-    expect(screen.getByText(/No events are simulated/)).toBeInTheDocument();
-  });
-  it('labels unverified events', async () => {
-    mockFetch({ '/api/events': { body: { configured: true, items: [{ id: 'wh1', paypalEventId: 'E1', eventType: 'PAYMENT.CAPTURE.REFUNDED', resourceId: 'R1', eventTime: '2026-11-12T00:00:00Z', verified: false, processingStatus: 'rejected', relatedIds: ['R1', 'CAP'], summary: 's', receivedAt: '' }] } } });
-    renderWithProviders(<EventMonitorPage />);
-    expect(await screen.findByText('unverified')).toBeInTheDocument();
   });
 });
 

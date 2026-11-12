@@ -27,7 +27,7 @@ describe('Investigation workspace', () => {
     expect(within(claim).getByText('allegation only')).toBeInTheDocument();
     // Missing evidence appears as a timeline marker on the Evidence tab.
     await userEvent.click(screen.getByRole('tab', { name: /Evidence/ }));
-    expect(screen.getByText(/Event Monitor not configured/)).toBeInTheDocument();
+    expect(screen.getByText(/webhooks not configured/)).toBeInTheDocument();
   });
 
   it('clicking an evidence chip scrolls to and highlights that evidence', async () => {

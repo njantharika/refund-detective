@@ -8,7 +8,6 @@ import { SettingsPage } from './pages/Settings';
 import { InvestigationsPage, NewInvestigationPage } from './pages/Investigations';
 import { InvestigationWorkspace } from './pages/InvestigationWorkspace';
 import { DisputesPage } from './pages/Disputes';
-import { EventMonitorPage } from './pages/EventMonitor';
 import { InsightsPage } from './pages/Insights';
 import { RefundsPage } from './pages/Refunds';
 import { RefundDetailPage } from './pages/RefundDetail';
@@ -38,7 +37,6 @@ export function App() {
         <Route path="/refunds" element={<RefundsPage />} />
         <Route path="/refunds/:id" element={<RefundDetailPage />} />
         <Route path="/disputes" element={<DisputesPage />} />
-        <Route path="/events" element={<EventMonitorPage />} />
         <Route path="/insights" element={<InsightsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<NotBuiltYet title="Not found" />} />

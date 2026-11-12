@@ -4,7 +4,7 @@ const fs = {
   targetCaptureId: '0NM23031PE726202M', orderId: '2N3925934C459540S', orderStatus: 'COMPLETED', captureStatus: 'COMPLETED', captureCount: 1, currency: 'USD',
   capturedAmount: '42.00', completedRefundTotal: '0.00', pendingRefundTotal: '0.00', remainingRefundable: '42.00', refunds: [], openDisputes: [], hasOpenDispute: false,
   appPendingRefund: false, appRefundsUnknown: false, lockHeld: false, currencyMismatch: false, conflictingStatuses: [],
-  missingEvidence: ['No PayPal webhook events received (Event Monitor not configured)'], refundBlockers: [], refundEligible: true, computedAt: '2026-11-12T00:00:00Z',
+  missingEvidence: ['No PayPal webhook events received (webhooks not configured)'], refundBlockers: [], refundEligible: true, computedAt: '2026-11-12T00:00:00Z',
 };
 const evidence = [
   { id: 'EV-001', type: 'order', source: 'paypal_mcp', description: 'Order 2N3925934C459540S status COMPLETED', observedAt: '2026-11-11T18:00:00Z', normalized: {}, verified: true, provenance: { tool: 'get_order', path: 'mcp', fetchedAt: '' } },

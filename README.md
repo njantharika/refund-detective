@@ -59,7 +59,7 @@ cp .env.example .env
 | `AI_PROVIDER` | yes | `gemini` (verified), `anthropic`, or `openai` (any OpenAI-compatible endpoint) |
 | `GEMINI_API_KEY` | for Gemini | Or `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY` with `OPENAI_BASE_URL` |
 | `AI_MODEL_*` | no | Per-role model overrides. Leave blank for the defaults. |
-| `PAYPAL_WEBHOOK_ID` | no | Enables the Event Monitor (see below) |
+| `PAYPAL_WEBHOOK_ID` | no | Enables verified PayPal webhooks as investigation evidence (see below) |
 | `COUNCIL_REBUTTAL` | no | `true` adds one rebuttal round |
 | `DATABASE_PATH`, `PORT` | no | Defaults: `./data/refund-detective.db` and `3001` |
 
@@ -99,11 +99,11 @@ npm run test:sandbox               # read-only live smoke test
 ### No PayPal credentials?
 The app starts in **Demo mode**: clearly labelled sample rows (IDs start with `DEMO-`) and a banner on every page. Investigations, councils and refunds are disabled, because they must never act on sample data.
 
-### Event Monitor (optional)
+### PayPal webhooks (optional)
 ```bash
 cloudflared tunnel --url http://localhost:3001     # or: ngrok http 3001
 ```
-Add `https://<tunnel>/api/webhooks/paypal` as a webhook on your Sandbox app (PAYMENT.CAPTURE.\* and CUSTOMER.DISPUTE.\*), then set `PAYPAL_WEBHOOK_ID`. Every event is verified with PayPal's `verify-webhook-signature`. Unverified events are listed but never used as evidence. Without a webhook ID, the page says "Not configured" and nothing is simulated.
+Add `https://<tunnel>/api/webhooks/paypal` as a webhook on your Sandbox app (PAYMENT.CAPTURE.\* and CUSTOMER.DISPUTE.\*), then set `PAYPAL_WEBHOOK_ID`. Every event is verified with PayPal's `verify-webhook-signature`. Unverified events are stored but never used as evidence. Without a webhook ID, investigations list webhooks as missing evidence, and nothing is simulated.
 
 ## Deploy (Render)
 [`render.yaml`](render.yaml) defines one web service: `npm ci && npm run build`, then `npm start`. Set `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and `GEMINI_API_KEY` in the Render dashboard. The MCP child process runs inside the same service. On the free plan the SQLite file is ephemeral; attach a disk and set `DATABASE_PATH` to keep data.

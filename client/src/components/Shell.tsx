@@ -2,7 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, type IntegrationStatus } from '../lib/api';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Activity, Bell, FileSearch, FlaskConical, Gauge, LineChart, ListOrdered, RotateCcw, Scale, Search, Settings, ShieldCheck, Store } from 'lucide-react';
+import { FileSearch, FlaskConical, Gauge, LineChart, ListOrdered, RotateCcw, Scale, Search, Settings, ShieldCheck, Store } from 'lucide-react';
 import { cx } from './ui';
 
 export const NAV = [
@@ -11,7 +11,6 @@ export const NAV = [
   { to: '/investigations', label: 'Investigations', icon: FileSearch },
   { to: '/refunds', label: 'Refunds', icon: RotateCcw },
   { to: '/disputes', label: 'Disputes', icon: Scale },
-  { to: '/events', label: 'Event Monitor', icon: Activity },
   { to: '/insights', label: 'Insights', icon: LineChart },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
@@ -99,9 +98,6 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="flex flex-1 justify-center">
             <GlobalSearch />
           </div>
-          <button type="button" aria-label="Notifications" className="hidden rounded-lg p-2 text-slate-400 hover:bg-white/[0.05] hover:text-white sm:block">
-            <Bell className="h-4 w-4" />
-          </button>
           <div className="flex shrink-0 items-center gap-2 rounded-lg border border-white/[0.06] px-2.5 py-1.5" title="Sandbox merchant account">
             <Store aria-hidden className="h-4 w-4 text-teal" />
             <span className="hidden text-xs text-slate-300 sm:inline">Sandbox merchant</span>

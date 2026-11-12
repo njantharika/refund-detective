@@ -46,7 +46,7 @@ function webhookService(status: string, webhookId: string | undefined = 'WH-ID-1
   return { db, svc, fetchMock };
 }
 
-describe('Event Monitor: webhook signature verification', () => {
+describe('Webhooks: signature verification', () => {
   it('verifies with PayPal verify-webhook-signature and stores a verified, linked, redacted event', async () => {
     const { db, svc, fetchMock } = webhookService('SUCCESS');
     const r = await svc.receive(headers, event());
