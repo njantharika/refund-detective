@@ -45,7 +45,10 @@ export interface FactSheet {
   completedRefundTotal: string | null;
   pendingRefundTotal: string | null;
   remainingRefundable: string | null;
-  refunds: { id: string; status: string | null; amount: string | null; currency: string | null }[];
+  /** initiatedBy: whether Refund Detective created the refund (known from its own records) or it came from outside the app. */
+  refunds: { id: string; status: string | null; amount: string | null; currency: string | null; initiatedBy: 'refund_detective' | 'outside_app' }[];
+  /** Informational context computed by code; each note says whether it is an observation or an inference. */
+  notes: string[];
   openDisputes: string[];
   hasOpenDispute: boolean;
   appPendingRefund: boolean;
@@ -151,6 +154,14 @@ export function computeFactSheet(input: FactSheetInput): FactSheet {
   if (openDisputes.length) blockers.push(`Open dispute(s) ${openDisputes.join(', ')}: resolve via the dispute flow`);
   if (currencyMismatch) blockers.push('Currency mismatch between capture and refunds');
 
+  const appRefundIds = new Set(input.appRefunds.map((a) => a.paypalRefundId).filter(Boolean) as string[]);
+  const refundRows = refunds.map((r) => ({ id: r.id, status: r.status, amount: r.amount?.value ?? null, currency: r.amount?.currency ?? null, initiatedBy: appRefundIds.has(r.id) ? ('refund_detective' as const) : ('outside_app' as const) }));
+  const notes: string[] = [];
+  for (const r of refundRows) {
+    if (r.initiatedBy === 'outside_app') notes.push(`Observed: refund ${r.id} (${r.amount ?? '?'} ${r.currency ?? ''}, ${r.status ?? 'unknown'}) was not created by Refund Detective or the merchant through this app.`);
+    if (r.initiatedBy === 'outside_app' && r.status === 'PENDING' && openDisputes.length)
+      notes.push(`Inference: with dispute ${openDisputes.join(', ')} open, pending refund ${r.id} is most likely PayPal's own dispute-related hold or reversal, not a merchant refund. It still counts against the remaining refundable amount.`);
+  }
   const m = (v: number | null) => (v === null || !currency ? null : fromMinor(v, currency));
   return {
     targetCaptureId: captureId ?? null,
@@ -163,7 +174,8 @@ export function computeFactSheet(input: FactSheetInput): FactSheet {
     completedRefundTotal: capture && !refundTotalsUnverified ? m(completedMinor) : null,
     pendingRefundTotal: capture ? m(pendingMinor) : null,
     remainingRefundable: m(remainingMinor),
-    refunds: refunds.map((r) => ({ id: r.id, status: r.status, amount: r.amount?.value ?? null, currency: r.amount?.currency ?? null })),
+    refunds: refundRows,
+    notes,
     openDisputes,
     hasOpenDispute: openDisputes.length > 0,
     appPendingRefund,

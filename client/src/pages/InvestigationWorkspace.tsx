@@ -166,6 +166,25 @@ function FactSheetCard({ inv }: { inv: Investigation }) {
         </Field>
         <Field label="Open disputes">{fs.openDisputes.length ? fs.openDisputes.join(', ') : 'None'}</Field>
       </dl>
+      {fs.refunds.length > 0 && (
+        <ul className="mt-4 space-y-1.5">
+          {fs.refunds.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+              <span className="mono">{r.id}</span>
+              <span className="tabular-nums">{r.amount} {r.currency}</span>
+              <StatusBadge status={r.status} />
+              {r.initiatedBy && <Pill tone={r.initiatedBy === 'refund_detective' ? 'violet' : 'neutral'}>{r.initiatedBy === 'refund_detective' ? 'via Refund Detective' : 'outside this app'}</Pill>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {fs.notes && fs.notes.length > 0 && (
+        <ul className="mt-3 space-y-1 text-xs text-slate-400">
+          {fs.notes.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      )}
       {fs.conflictingStatuses.length > 0 && (
         <div className="mt-4">
           <Notice tone="danger" title="Conflicting statuses">

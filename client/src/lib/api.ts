@@ -185,7 +185,8 @@ export interface FactSheet {
   completedRefundTotal: string | null;
   pendingRefundTotal: string | null;
   remainingRefundable: string | null;
-  refunds: { id: string; status: string | null; amount: string | null; currency: string | null }[];
+  refunds: { id: string; status: string | null; amount: string | null; currency: string | null; initiatedBy?: 'refund_detective' | 'outside_app' }[];
+  notes?: string[];
   openDisputes: string[];
   hasOpenDispute: boolean;
   appPendingRefund: boolean;

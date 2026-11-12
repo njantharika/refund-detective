@@ -156,3 +156,23 @@ describe('FactSheet: refunds PayPal does not list on the order (real get_order s
     expect(fs.refundEligible).toBe(false);
   });
 });
+
+describe('FactSheet: refund origin', () => {
+  it('labels refunds created outside the app and explains a pending one during an open dispute as an inference', () => {
+    const o = normalizeOrder(orderFixture({ captureId: CAP, amount: '54.00', refunds: [{ id: 'PAYPALHOLD000001', value: '51.16', status: 'PENDING' }] }));
+    const fs = computeFactSheet({
+      order: o,
+      targetCaptureId: CAP,
+      disputes: [{ id: 'PP-R-1', status: 'WAITING_FOR_SELLER_RESPONSE', reason: null, stage: null, amount: null, createdAt: null, updatedAt: null, disputedTransactionIds: [CAP], outcome: null }],
+      appRefunds: [],
+      locks: [],
+    });
+    expect(fs.refunds[0].initiatedBy).toBe('outside_app');
+    expect(fs.notes.join(' ')).toMatch(/Inference: .*dispute-related hold or reversal/);
+  });
+  it('labels refunds the app executed', () => {
+    const fs = computeFactSheet({ ...base({}, [{ id: 'R1', value: '10.00' }]), appRefunds: [{ id: 'a', captureId: CAP, amount: '10.00', currency: 'USD', status: 'completed', paypalRefundId: 'R1' }] });
+    expect(fs.refunds[0].initiatedBy).toBe('refund_detective');
+    expect(fs.notes).toEqual([]);
+  });
+});

@@ -2,6 +2,20 @@
 
 _Last updated: 2026-11-12 12:30 IST. Phases 1–5 code and docs complete. Remaining: public repo, deploy, video (merchant actions)._
 
+## Demo data run (2026-11-12, afternoon)
+- 6 more Sandbox orders created, buyer-approved and captured (USD 467.14 captured in total). The buyer opened 2 real disputes: `PP-R-ULM-10200163` (DUPLICATE_TRANSACTION, $17.25) and `PP-R-NAL-10200165` (not received, $54.00). PayPal then created its own PENDING refunds ($16.10 and $51.16) and put both captures in PENDING.
+- 5 live investigations (`inv_f183fad13922`, `inv_e5a76ba8e22f`, `inv_927a5d49b1ca`, `inv_f51606e58e87`, `inv_33e517302603`), all fully cited.
+- Councils:
+  - damaged lamp $30.00 → **APPROVE** (0.95; executable, not executed);
+  - wrong size $38.50 → NEEDS_MORE_INFO, and late delivery $15.00 → REJECT. The Judge caught that the complaint's timeline ("returned yesterday", "9 days late") contradicts a capture two hours earlier;
+  - charged twice $17.25 → REJECT, and the guardrails also failed `no_refund_in_progress` and `no_open_dispute`;
+  - accept claim on `PP-R-NAL-10200165` → REJECT, whose rationale wrongly assumed the merchant created the $51.16 refund. Re-run → ESCALATE_TO_HUMAN: the Challenger's model timed out and its fallback returned 503.
+- Fixes:
+  - the dispute normalizer used the buyer transaction ID as the capture ID;
+  - the FactSheet now labels each refund `refund_detective` or `outside_app`, with a code-generated *inference* note when an outside pending refund coincides with an open dispute;
+  - an applied migration had been edited (Event Monitor 500); this now moved to 005, with a checksum guard.
+- The Gemini free tier's daily quota ran out again on `gemini-3.5-flash` and `gemini-3.6-flash` during this run.
+
 ## Phase 4–5 report
 
 **Implemented**
