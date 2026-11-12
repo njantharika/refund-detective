@@ -5,9 +5,9 @@ import type { NormalizedDispute, PayPalPath } from './paypal.types.js';
 type AnyObj = Record<string, any>;
 
 export function normalizeDispute(d: AnyObj): NormalizedDispute {
-  const txIds: string[] = (d?.disputed_transactions ?? [])
-    .map((t: AnyObj) => t?.seller_transaction_id ?? t?.buyer_transaction_id)
-    .filter((x: unknown): x is string => typeof x === 'string');
+  // Only seller-side transaction IDs are captures. list_disputes omits seller_transaction_id (seen live), so
+  // the buyer's transaction ID must never be used as a capture ID; get_dispute provides the seller side.
+  const txIds: string[] = (d?.disputed_transactions ?? []).map((t: AnyObj) => t?.seller_transaction_id).filter((x: unknown): x is string => typeof x === 'string');
   return {
     id: String(d?.dispute_id ?? ''),
     status: d?.status ?? null,

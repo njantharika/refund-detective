@@ -206,6 +206,12 @@ describe('dispute accept flow', () => {
     expect(JSON.stringify(detail.raw)).not.toContain('Ada');
   });
 
+  it('never treats the buyer transaction ID as a capture (list_disputes omits the seller side)', async () => {
+    const { normalizeDispute } = await import('../src/services/paypal/paypal-dispute.service.js');
+    expect(normalizeDispute({ dispute_id: 'D1', disputed_transactions: [{ buyer_transaction_id: '7L684321PW4584335' }] }).disputedTransactionIds).toEqual([]);
+    expect(normalizeDispute({ dispute_id: 'D1', disputed_transactions: [{ buyer_transaction_id: '7L684321PW4584335', seller_transaction_id: '3UU21036DV699220X' }] }).disputedTransactionIds).toEqual(['3UU21036DV699220X']);
+  });
+
   it('dispute summary key facts must cite real payload fields', () => {
     const paths = fieldPaths(disputeRaw());
     expect(paths.has('dispute_amount.value')).toBe(true);
