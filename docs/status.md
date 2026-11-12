@@ -1,6 +1,25 @@
 # Refund Detective — Build Status
 
-_Last updated: 2026-11-12 00:50 IST. Phases 1–2 complete and verified live. Next: Phase 3 (Decision Council + refund)._
+_Last updated: 2026-11-12 11:45 IST. Phases 1–3 complete; first real Sandbox refund executed and verified. Next: Phase 4 polish, then Phase 5 submission._
+
+## Phase 3 report
+
+**Implemented**
+- Decision Council (`server/src/services/council/`): Advocate (100% for) and Challenger (100% against) run in parallel via `Promise.all`, isolated, on different models. There's an optional single rebuttal round (`COUNCIL_REBUTTAL`). A code citation check marks `invalid_citation`/`uncited` before the Judge. If either side fails, the outcome is `ESCALATE_TO_HUMAN` without a Judge ruling. The Judge returns the §8.3 schema. Guardrails are stricter-only, against a FactSheet **recomputed from live PayPal data**: remaining ≤ 0 → REJECT; over remaining → cap (APPROVE_MODIFIED); currency mismatch, pending refund, lock or unknown attempt → REJECT; open dispute → ESCALATE; confidence < 0.6 → NEEDS_MORE_INFO; hidden refunds → REJECT. The real stage is persisted and audited per role.
+- Refund flow (`server/src/services/refund/`): `validate` (live), and `approve`, which requires a passing verdict for the exact capture and amount, the exact confirmation label, a live re-validation, the operation lock (409), a `requested` row with a UUID idempotency key, one refund per deliberation (unique index), `create_refund` exactly once, `get_refund` verification, reconciliation on an unknown outcome, lock release and audit.
+- UI: council panel (For/Against columns, struck-through uncited arguments, safer alternative, progressive status, verdict card with guardrail result row) and refund modal (live eligibility, IDs and amounts, "I authorize this Sandbox refund", button labelled with the exact amount).
+
+**Verified live (2026-11-12)**
+- **Real Sandbox refund:** `5YE09135FX432004L`, USD 20.00 on capture `06W69011L3412890N` (order `15E54074HC612730M`). PayPal returned COMPLETED, verified via `get_refund`. App refund `rf_18f82a383c82`, idempotency key recorded. Audit trail: investigation_requested → evidence_collected → report_generated → council_requested → argument_submitted ×2 → verdict_issued → guardrails_applied → refund_approved → refund_executed.
+- Replaying the same approval returned 409 `ALREADY_EXECUTED`; no PayPal call.
+- **Duplicate/over-refund attempt:** council on USD 64.00 for the partially refunded capture. The Challenger cited the completed 20.00 refund and the 44.00 remaining; the Judge ruled REJECT (confidence 1.0); nothing executable.
+
+**Serious bug found by live verification and fixed**
+- PayPal's `get_order` response **does not list refunds** (`payments` contains only `captures`), so the FactSheet showed 0.00 refunded and 64.00 remaining after the refund. The test fakes had assumed otherwise.
+- Fix: refunds now come from `get_refund` for every refund the app created (and any listed), attached to the capture via PayPal's `up` link. Fail-safe: `REFUNDED` means 0 remaining; `PARTIALLY_REFUNDED` with no visible refunds means remaining unknown, and the refund is blocked. Reconciling an unknown outcome uses Transaction Search T11xx events (`paypal_reference_id` = capture) plus `get_refund`. Test fakes now mirror the real PayPal shape.
+- Gemini free-tier resilience: per-role fallbacks (the parallel agents never share a model), fallback-first on 429/5xx, and a per-attempt timeout cap.
+
+**Tests:** server 119/119, client 19/19.
 
 ## Phase 2 report
 
@@ -90,12 +109,12 @@ _Last updated: 2026-11-12 00:50 IST. Phases 1–2 complete and verified live. Ne
 3. [x] Real Sandbox transactions and orders/captures are retrieved and displayed (verified live 2026-11-12: 3 captured demo orders via get_order + Transaction Search row, merged in /api/transactions)
 4. [x] Investigation produces a schema-valid, evidence-cited report (live, inv_7833cb461c58)
 5. [x] UI shows the evidence behind each finding (chips scroll to and highlight the timeline item)
-6. [ ] Decision Council runs Advocate and Challenger in parallel, and the Judge's verdict is persisted and displayed
-7. [ ] Guardrails independently validate eligibility and can override the Judge
-8. [ ] Refund requires explicit merchant approval
-9. [ ] An authorized Sandbox refund executes, and `get_refund` verifies it
-10. [ ] Audit log records investigator, council and refund actions
-11. [ ] Duplicate-refund scenario is blocked
+6. [x] Decision Council runs Advocate and Challenger in parallel, and the Judge's verdict is persisted and displayed
+7. [x] Guardrails independently validate eligibility and can override the Judge
+8. [x] Refund requires explicit merchant approval
+9. [x] An authorized Sandbox refund executes, and `get_refund` verifies it (5YE09135FX432004L, USD 20.00, COMPLETED)
+10. [x] Audit log records investigator, council and refund actions
+11. [x] Duplicate-refund scenario is blocked
 12. [ ] Errors and empty states are handled; Demo mode is clearly labelled
 13. [ ] README lets a stranger run it; MIT LICENSE present
 14. [ ] No secrets in the repo or history; public repo; demo URL or run instructions

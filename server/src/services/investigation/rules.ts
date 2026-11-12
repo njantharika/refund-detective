@@ -57,6 +57,7 @@ export interface FactSheet {
   /** Plain-language reasons a refund must not proceed right now (empty means eligible on the facts). */
   refundBlockers: string[];
   refundEligible: boolean;
+  refundTotalsUnverified: boolean;
   computedAt: string;
 }
 
@@ -84,8 +85,12 @@ export function computeFactSheet(input: FactSheetInput): FactSheet {
   if (input.order && input.order.captures.length === 0) missing.push('Order has no captures: payment was never captured');
   if (input.targetCaptureId && input.order && !capture) conflicts.push(`Capture ${input.targetCaptureId} is not part of order ${input.order.id}`);
 
-  // Refunds on the target capture, with fresh get_refund status taking precedence.
-  const refunds: NormalizedRefund[] = (capture?.refunds ?? []).map((r) => input.refundLookups?.[r.id] ?? r);
+  // Refunds on the target capture: those listed on the order (fresh get_refund status wins) plus refunds
+  // found via get_refund whose PayPal "up" link points at this capture.
+  const listed = (capture?.refunds ?? []).map((r) => input.refundLookups?.[r.id] ?? r);
+  const listedIds = new Set(listed.map((r) => r.id));
+  const extra = capture ? Object.values(input.refundLookups ?? {}).filter((r) => r.captureId === capture.id && !listedIds.has(r.id)) : [];
+  const refunds: NormalizedRefund[] = [...listed, ...extra];
   let completedMinor = 0;
   let pendingMinor = 0;
   let currencyMismatch = false;
@@ -114,7 +119,17 @@ export function computeFactSheet(input: FactSheetInput): FactSheet {
   const lockHeld = input.locks.some((l) => l.resourceId === captureId && new Date(l.expiresAt) > now);
 
   const capturedMinor = capture?.amount && currency ? toMinor(capture.amount.value, currency) : null;
-  const remainingMinor = capturedMinor !== null ? Math.max(0, capturedMinor - completedMinor - pendingMinor) : null;
+  let remainingMinor = capturedMinor !== null ? Math.max(0, capturedMinor - completedMinor - pendingMinor) : null;
+
+  // Fail safe: PayPal's capture status is authoritative about refunds we cannot see (e.g. refunds made in the
+  // PayPal dashboard, which get_order does not list). Never compute "remaining" from an incomplete picture.
+  let refundTotalsUnverified = false;
+  if (capture?.status === 'REFUNDED' && capturedMinor !== null) remainingMinor = 0;
+  if (capture?.status === 'PARTIALLY_REFUNDED' && refunds.length === 0) {
+    refundTotalsUnverified = true;
+    remainingMinor = null;
+    missing.push('PayPal reports this capture PARTIALLY_REFUNDED, but the refund records are not visible to the app (e.g. refunded outside Refund Detective)');
+  }
 
   // Status consistency between the capture and the refund records.
   if (capture && capturedMinor !== null) {
@@ -129,6 +144,7 @@ export function computeFactSheet(input: FactSheetInput): FactSheet {
   if (!capture) blockers.push('No capture identified: refunds target capture IDs, not order IDs');
   else if (capture.status && NON_REFUNDABLE_CAPTURE.has(capture.status)) blockers.push(`Capture status ${capture.status} is not refundable`);
   if (remainingMinor !== null && remainingMinor <= 0) blockers.push('Nothing left to refund: remaining refundable amount is 0');
+  if (refundTotalsUnverified) blockers.push('Remaining refundable cannot be verified: PayPal reports a partial refund the app cannot see');
   if (pendingMinor > 0 || appPendingRefund) blockers.push('A refund is already in progress for this capture');
   if (appRefundsUnknown) blockers.push('A previous refund attempt has an unknown outcome and must be reconciled first');
   if (lockHeld) blockers.push('Another refund operation holds the lock on this capture');
@@ -144,7 +160,7 @@ export function computeFactSheet(input: FactSheetInput): FactSheet {
     captureCount: input.order?.captures.length ?? 0,
     currency,
     capturedAmount: m(capturedMinor),
-    completedRefundTotal: capture ? m(completedMinor) : null,
+    completedRefundTotal: capture && !refundTotalsUnverified ? m(completedMinor) : null,
     pendingRefundTotal: capture ? m(pendingMinor) : null,
     remainingRefundable: m(remainingMinor),
     refunds: refunds.map((r) => ({ id: r.id, status: r.status, amount: r.amount?.value ?? null, currency: r.amount?.currency ?? null })),
@@ -158,6 +174,7 @@ export function computeFactSheet(input: FactSheetInput): FactSheet {
     missingEvidence: [...new Set(missing)],
     refundBlockers: blockers,
     refundEligible: blockers.length === 0,
+    refundTotalsUnverified,
     computedAt: now.toISOString(),
   };
 }

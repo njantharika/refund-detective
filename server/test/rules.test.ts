@@ -122,3 +122,37 @@ describe('checkRefundAmount', () => {
     expect(checkRefundAmount(fs, { value: '1.999', currency: 'USD' }).ok).toBe(false);
   });
 });
+
+describe('FactSheet: refunds PayPal does not list on the order (real get_order shape)', () => {
+  const order = (status: string) => {
+    const o = normalizeOrder(orderFixture({ captureId: CAP, amount: '64.00' }));
+    o.captures[0].status = status;
+    return o;
+  };
+  const lookup = (id: string, value: string, captureId: string | null = CAP) => ({ id, captureId, status: 'COMPLETED', amount: { value, currency: 'USD' }, createdAt: null, updatedAt: null, noteToPayer: null });
+
+  it('counts refunds found via get_refund whose up-link points at the capture', () => {
+    const fs = computeFactSheet({ order: order('PARTIALLY_REFUNDED'), targetCaptureId: CAP, refundLookups: { R1: lookup('R1', '20.00') }, disputes: [], appRefunds: [], locks: [] });
+    expect(fs).toMatchObject({ completedRefundTotal: '20.00', remainingRefundable: '44.00', refundEligible: true, refundTotalsUnverified: false });
+  });
+
+  it('ignores looked-up refunds that belong to another capture', () => {
+    const fs = computeFactSheet({ order: order('COMPLETED'), targetCaptureId: CAP, refundLookups: { R1: lookup('R1', '20.00', 'OTHERCAPTURE12345') }, disputes: [], appRefunds: [], locks: [] });
+    expect(fs.remainingRefundable).toBe('64.00');
+  });
+
+  it('fails safe on PARTIALLY_REFUNDED with no visible refund records (e.g. refunded in the PayPal dashboard)', () => {
+    const fs = computeFactSheet({ order: order('PARTIALLY_REFUNDED'), targetCaptureId: CAP, disputes: [], appRefunds: [], locks: [] });
+    expect(fs.remainingRefundable).toBeNull();
+    expect(fs.completedRefundTotal).toBeNull();
+    expect(fs.refundTotalsUnverified).toBe(true);
+    expect(fs.refundEligible).toBe(false);
+    expect(fs.refundBlockers.join(' ')).toMatch(/cannot be verified/);
+  });
+
+  it('treats a REFUNDED capture as having nothing left, even with no visible records', () => {
+    const fs = computeFactSheet({ order: order('REFUNDED'), targetCaptureId: CAP, disputes: [], appRefunds: [], locks: [] });
+    expect(fs.remainingRefundable).toBe('0.00');
+    expect(fs.refundEligible).toBe(false);
+  });
+});

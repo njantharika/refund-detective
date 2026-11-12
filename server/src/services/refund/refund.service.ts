@@ -168,23 +168,38 @@ export class RefundService {
       const r = (await paypal.refunds.getRefund(row.paypal_refund_id)).refund;
       this.update(refundId, { status: mapStatus(r.status), summary: `Reconciled via get_refund: ${r.id} ${r.status}` });
     } else {
-      const inv = this.deps.investigations.get(row.investigation_id);
-      if (!inv.orderId) return this.result(refundId);
-      const order = (await paypal.transactions.getOrder(inv.orderId)).order;
-      const capture = order.captures.find((c) => c.id === row.capture_id);
+      // No refund ID (the create call timed out). PayPal's get_order does not list refunds, so:
+      // (1) any refunds listed on the order, (2) Transaction Search refund events referencing this capture,
+      // each verified with get_refund; (3) otherwise report the capture-status signal and stay `unknown`.
       const linked = new Set(db.prepare('SELECT paypal_refund_id FROM refunds WHERE paypal_refund_id IS NOT NULL').pluck().all() as string[]);
-      // Created after our request (5 min tolerance for clock skew between us and PayPal), same amount, not linked elsewhere.
       const notBefore = new Date(row.created_at).getTime() - 5 * 60_000;
-      const match = capture?.refunds.find(
-        (r) =>
-          !linked.has(r.id) &&
-          r.amount &&
-          r.amount.currency === row.currency &&
-          toMinor(r.amount.value, row.currency) === toMinor(row.amount, row.currency) &&
-          (!r.createdAt || new Date(r.createdAt).getTime() >= notBefore),
-      );
-      if (match) this.update(refundId, { paypalRefundId: match.id, status: mapStatus(match.status), summary: `Reconciled via get_order: found refund ${match.id} ${match.status}` });
-      else this.update(refundId, { summary: `Reconciling with PayPal: no matching refund on capture ${row.capture_id} yet` });
+      const sameAmount = (m: { value: string; currency: string } | null) => !!m && m.currency === row.currency && Math.abs(toMinor(m.value.replace(/^-/, ''), row.currency)) === toMinor(row.amount, row.currency);
+      const inv = this.deps.investigations.get(row.investigation_id);
+      let captureStatus: string | null = null;
+      let candidateId: string | null = null;
+      if (inv.orderId) {
+        const order = (await paypal.transactions.getOrder(inv.orderId)).order;
+        const capture = order.captures.find((c) => c.id === row.capture_id);
+        captureStatus = capture?.status ?? null;
+        candidateId = capture?.refunds.find((r) => !linked.has(r.id) && sameAmount(r.amount) && (!r.createdAt || new Date(r.createdAt).getTime() >= notBefore))?.id ?? null;
+      }
+      if (!candidateId) {
+        const search = await paypal.transactions.search({ from: new Date(notBefore), to: new Date() });
+        candidateId =
+          search.transactions.find((t) => t.referenceId === row.capture_id && t.transactionId && !linked.has(t.transactionId) && t.eventCode?.startsWith('T11') && sameAmount(t.amount))?.transactionId ?? null;
+      }
+      if (candidateId) {
+        const r = (await paypal.refunds.getRefund(candidateId)).refund;
+        if (r.captureId && r.captureId !== row.capture_id) {
+          this.update(refundId, { summary: `Reconciling with PayPal: candidate ${candidateId} belongs to another capture` });
+        } else {
+          this.update(refundId, { paypalRefundId: r.id, status: mapStatus(r.status), summary: `Reconciled: found refund ${r.id}, verified via get_refund (${r.status})` });
+        }
+      } else {
+        this.update(refundId, {
+          summary: `Reconciling with PayPal: no matching refund visible yet${captureStatus && captureStatus !== 'COMPLETED' ? `; PayPal reports capture ${captureStatus}` : ''}. New refunds stay blocked until this is resolved.`,
+        });
+      }
     }
     audit(db, { actor: 'system', action: 'refund_reconciled', resourceType: 'refund', resourceId: refundId, result: { status: this.row(refundId).status } });
     return this.result(refundId);

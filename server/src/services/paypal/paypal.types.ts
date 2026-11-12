@@ -18,11 +18,15 @@ export interface NormalizedTransaction {
   updatedAt: string | null;
   payerCountry: string | null;
   note: string | null;
+  /** For refunds/reversals in Transaction Search: the capture they refer to. */
+  referenceId?: string | null;
   source: 'transaction_search' | 'demo_order';
 }
 
 export interface NormalizedRefund {
   id: string;
+  /** Capture this refund belongs to, from PayPal's HATEOAS "up" link (null when not provided). */
+  captureId?: string | null;
   status: string | null;
   amount: Money | null;
   createdAt: string | null;

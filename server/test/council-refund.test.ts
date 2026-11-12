@@ -96,16 +96,24 @@ function sandbox(opts: { refunds?: { id: string; value: string; status?: string;
   return {
     refunds,
     handlers: {
+      // Like real PayPal (verified live): get_order lists NO refunds; only the capture status changes.
       get_order: (a: Record<string, unknown>) => {
         if (a.id !== ORDER) throw new PayPalError('not found', 404, 'PAYPAL_API_ERROR');
-        return orderFixture({ id: ORDER, captureId: CAP, refunds });
+        const o = orderFixture({ id: ORDER, captureId: CAP, refunds: [] });
+        const done = refunds.filter((r) => (r.status ?? 'COMPLETED') === 'COMPLETED').reduce((sum, r) => sum + Math.round(Number(r.value) * 100), 0);
+        o.purchase_units[0].payments.captures[0].status = done >= 4200 ? 'REFUNDED' : done > 0 ? 'PARTIALLY_REFUNDED' : 'COMPLETED';
+        return o;
       },
       get_refund: (a: Record<string, unknown>) => {
         const r = refunds.find((x) => x.id === a.refund_id);
         if (!r) throw new PayPalError('not found', 404, 'PAYPAL_API_ERROR');
-        return { id: r.id, status: r.status ?? 'COMPLETED', amount: { currency_code: 'USD', value: r.value } };
+        return { id: r.id, status: r.status ?? 'COMPLETED', amount: { currency_code: 'USD', value: r.value }, links: [{ rel: 'up', href: `https://api.sandbox.paypal.com/v2/payments/captures/${CAP}` }] };
       },
-      list_transactions: () => ({ transaction_details: [] }),
+      // Refunds appear in Transaction Search as T1107 events referencing the capture (refund ID = transaction_id).
+      list_transactions: () => ({
+        transaction_details: refunds.map((r) => ({ transaction_info: { transaction_id: r.id, paypal_reference_id: CAP, transaction_event_code: 'T1107', transaction_status: 'S', transaction_amount: { currency_code: 'USD', value: `-${r.value}` }, transaction_initiation_date: r.createdAt ?? new Date().toISOString() } })),
+        total_pages: 1,
+      }),
       list_disputes: () => ({ items: opts.disputes ?? [] }),
       create_refund:
         opts.createRefund ??
@@ -238,6 +246,12 @@ describe('guardrails override the Judge (stricter only)', () => {
     expect(r.finalOutcome).toBe('ESCALATE_TO_HUMAN');
     expect(r.overrideReasons.join(' ')).toMatch(/dispute flow/);
   });
+  it('hidden refunds (PARTIALLY_REFUNDED, nothing visible) → REJECT', () => {
+    const o = normalizeOrder(orderFixture({ id: ORDER, captureId: CAP }));
+    o.captures[0].status = 'PARTIALLY_REFUNDED';
+    const fs = computeFactSheet({ order: o, targetCaptureId: CAP, disputes: [], appRefunds: [], locks: [] });
+    expect(g(fs)).toMatchObject({ finalOutcome: 'REJECT', executable: null });
+  });
   it('Judge confidence below 0.6 → NEEDS_MORE_INFO', () => {
     expect(g(fsWith(), judge({ confidence: 0.55 })).finalOutcome).toBe('NEEDS_MORE_INFO');
   });
@@ -337,7 +351,7 @@ describe('refund approve flow', () => {
     expect(h.transport.calls.filter((c) => c.name === 'create_refund')).toHaveLength(1);
   });
 
-  it('on an unknown outcome: marks unknown, never retries create_refund, and reconciles via get_order', async () => {
+  it('on an unknown outcome: marks unknown, never retries create_refund, and reconciles via Transaction Search + get_refund', async () => {
     const sb = sandbox();
     sb.handlers.create_refund = (a: Record<string, unknown>) => {
       // PayPal processed it, but the response never arrived.
@@ -350,7 +364,7 @@ describe('refund approve flow', () => {
     expect(res.status).toBe(200);
     expect(h.transport.calls.filter((c) => c.name === 'create_refund')).toHaveLength(1);
     expect(res.body).toMatchObject({ status: 'completed', paypalRefundId: 'LATEREFUND000001' });
-    expect(res.body.paypalResponseSummary).toMatch(/Reconciled via get_order/);
+    expect(res.body.paypalResponseSummary).toMatch(/Reconciled: found refund LATEREFUND000001, verified via get_refund/);
     const audit = (await request(h.app).get(`/api/audit?resourceType=refund&resourceId=${res.body.id}`)).body.items.map((r: { action: string }) => r.action);
     expect(audit).toEqual(expect.arrayContaining(['refund_outcome_unknown', 'refund_reconciled']));
   });
@@ -362,6 +376,7 @@ describe('refund approve flow', () => {
     const res = await request(h.app).post(`/api/investigations/${invId}/refund/approve`).send(body(d.id));
     expect(res.body).toMatchObject({ status: 'unknown', reconciling: true });
     expect(res.body.paypalResponseSummary).toMatch(/Reconciling with PayPal/);
+    expect(h.transport.calls.filter((c) => c.name === 'create_refund')).toHaveLength(1);
     // The unknown attempt now blocks any further refund until reconciled.
     const v = await request(h.app).post(`/api/investigations/${invId}/refund/validate`).send({});
     expect(v.body.eligible).toBe(false);

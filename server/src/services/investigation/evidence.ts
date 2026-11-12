@@ -193,18 +193,27 @@ export async function collectEvidence(deps: { db: DB; paypal: PayPalIntegration 
     for (const c of order.captures) b.capture(c, order.id, orderPath);
   }
 
-  // 2) Fresh refund status via get_refund for every refund on the order.
+  // 2) Refunds. PayPal's get_order response does NOT list refunds (verified live: payments holds only
+  //    captures), so refunds are found via (a) any listed on the order and (b) every refund this app created
+  //    on these captures, each re-read live with get_refund. Its "up" link ties it to the capture.
+  const captureIds = order ? order.captures.map((c) => c.id) : [input.targetId];
+  const refundCandidates = new Map<string, string | null>(); // refundId -> captureId (if known)
+  for (const c of order?.captures ?? []) for (const r of c.refunds) refundCandidates.set(r.id, c.id);
+  const capPh = captureIds.map(() => '?').join(',');
+  for (const row of db.prepare(`SELECT paypal_refund_id, capture_id FROM refunds WHERE paypal_refund_id IS NOT NULL AND capture_id IN (${capPh})`).all(...captureIds) as { paypal_refund_id: string; capture_id: string }[]) {
+    if (!refundCandidates.has(row.paypal_refund_id)) refundCandidates.set(row.paypal_refund_id, row.capture_id);
+  }
   const refundLookups: Record<string, NormalizedRefund> = {};
-  for (const c of order?.captures ?? []) {
-    for (const r of c.refunds.slice(0, 10)) {
-      try {
-        const res = await paypal.refunds.getRefund(r.id);
-        refundLookups[r.id] = res.refund;
-        b.refund(res.refund, c.id, res.path, 'get_refund', null);
-      } catch (e) {
-        unavailable.push(`get_refund ${r.id}: ${errMsg(e)}`);
-        b.refund(r, c.id, orderPath, 'get_order', null);
-      }
+  for (const [refundId, knownCapture] of [...refundCandidates].slice(0, 20)) {
+    try {
+      const res = await paypal.refunds.getRefund(refundId);
+      const refund = { ...res.refund, captureId: res.refund.captureId ?? knownCapture };
+      refundLookups[refundId] = refund;
+      b.refund(refund, refund.captureId ?? null, res.path, 'get_refund', null);
+    } catch (e) {
+      unavailable.push(`get_refund ${refundId}: ${errMsg(e)}`);
+      const listed = order?.captures.flatMap((c) => c.refunds).find((r) => r.id === refundId);
+      if (listed) b.refund(listed, knownCapture, orderPath, 'get_order', null);
     }
   }
 

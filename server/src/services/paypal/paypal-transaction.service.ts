@@ -33,6 +33,7 @@ export function normalizeSearchTransaction(d: AnyObj): NormalizedTransaction {
     updatedAt: str(ti.transaction_updated_date),
     payerCountry: str(d?.payer_info?.country_code),
     note: str(ti.transaction_note) ?? str(ti.transaction_subject),
+    referenceId: str(ti.paypal_reference_id),
     source: 'transaction_search',
   };
 }
@@ -40,6 +41,7 @@ export function normalizeSearchTransaction(d: AnyObj): NormalizedTransaction {
 export function normalizeRefund(r: AnyObj): NormalizedRefund {
   return {
     id: String(r?.id ?? ''),
+    captureId: refundCaptureId(r),
     status: str(r?.status),
     amount: toMoney(r?.amount),
     createdAt: str(r?.create_time),
