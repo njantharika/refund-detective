@@ -40,6 +40,19 @@ describe('database migration', () => {
   });
 });
 
+describe('migration immutability', () => {
+  it('refuses to boot when an applied migration file was modified', async () => {
+    const os = await import('node:os');
+    const fsm = await import('node:fs');
+    const pathm = await import('node:path');
+    const file = pathm.join(fsm.mkdtempSync(pathm.join(os.tmpdir(), 'rd-')), 't.db');
+    const db = openDatabase(file);
+    db.prepare("UPDATE schema_migrations SET checksum = 'stale' WHERE name = '001_init.sql'").run();
+    db.close();
+    expect(() => openDatabase(file)).toThrow(/modified after it was applied/);
+  });
+});
+
 describe('secret scrubbing', () => {
   it('redacts token-shaped substrings', () => {
     const s = scrubSecrets('Authorization: Bearer A21AAabcdefghijklmnopqrstu and sk-ant-abcdefghijklmnop');

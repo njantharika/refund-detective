@@ -22,6 +22,3 @@ CREATE TABLE IF NOT EXISTS insight_summaries (
   created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
--- Webhook events link to every related PayPal ID (order, capture, refund), not just resource.id.
-ALTER TABLE webhook_events ADD COLUMN related_ids TEXT;   -- ",id1,id2," for exact LIKE matching
-ALTER TABLE webhook_events ADD COLUMN summary TEXT;

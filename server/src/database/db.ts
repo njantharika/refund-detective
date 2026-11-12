@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,14 +15,23 @@ export function openDatabase(dbPath: string): DB {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`);
-  const applied = new Set(db.prepare('SELECT name FROM schema_migrations').pluck().all() as string[]);
+  const cols = db.prepare('PRAGMA table_info(schema_migrations)').all() as { name: string }[];
+  if (!cols.some((c) => c.name === 'checksum')) db.exec('ALTER TABLE schema_migrations ADD COLUMN checksum TEXT');
+  const applied = new Map((db.prepare('SELECT name, checksum FROM schema_migrations').all() as { name: string; checksum: string | null }[]).map((r) => [r.name, r.checksum]));
   const files = fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
   for (const file of files) {
-    if (applied.has(file)) continue;
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
+    const checksum = createHash('sha256').update(sql).digest('hex');
+    if (applied.has(file)) {
+      const recorded = applied.get(file);
+      // Applied migrations are immutable: an edited file would silently never run (seen in development).
+      if (recorded && recorded !== checksum) throw new Error(`Migration ${file} was modified after it was applied. Add a new migration instead.`);
+      if (!recorded) db.prepare('UPDATE schema_migrations SET checksum = ? WHERE name = ?').run(checksum, file);
+      continue;
+    }
     db.transaction(() => {
       db.exec(sql);
-      db.prepare('INSERT INTO schema_migrations (name, applied_at) VALUES (?, ?)').run(file, new Date().toISOString());
+      db.prepare('INSERT INTO schema_migrations (name, applied_at, checksum) VALUES (?, ?, ?)').run(file, new Date().toISOString(), checksum);
     })();
   }
   return db;
